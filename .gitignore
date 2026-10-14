@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+out/
+.env
+.env.local
+.env.production
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.turbo/
+coverage/
+playwright-report/
+test-results/

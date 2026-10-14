@@ -1,0 +1,152 @@
+// Prisma schema for YouTube Watch Party System
+// Run: npx prisma migrate dev --name init
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+// A guest user created when they first create or join a room.
+// No password — authentication is purely session-token based.
+model User {
+  id          String   @id @default(cuid())
+  displayName String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions         Session[]
+  hostedRooms      Room[]            @relation("RoomHost")
+  roomParticipants RoomParticipant[]
+  requestsMade     PlaybackRequest[] @relation("RequestMadeBy")
+  requestsResolved PlaybackRequest[] @relation("RequestResolvedBy")
+
+  @@index([createdAt])
+}
+
+// ─── Session ─────────────────────────────────────────────────────────────────
+// One session per (user, room) pair. The JWT encodes sessionId + userId + roomId.
+// isRevoked is set to true when a participant is banned/removed.
+// The backend checks isRevoked on every socket handshake.
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  roomId     String
+  // SHA-256 hash of the issued JWT for lookup without storing raw token
+  tokenHash  String
+  isRevoked  Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId]) // One active session per user per room
+  @@index([tokenHash])
+  @@index([userId, roomId])
+}
+
+// ─── Room ─────────────────────────────────────────────────────────────────────
+// hostUserId is the CANONICAL source of Host identity.
+// A user cannot become Host by changing their RoomParticipant.role.
+// Host changes only happen when the Host explicitly transfers Host status,
+// which updates BOTH Room.hostUserId AND the relevant RoomParticipant.role records
+// inside a database transaction.
+model Room {
+  id        String   @id @default(cuid())
+  // 8-char uppercase alphanumeric, e.g. "AB12CD34"
+  code      String   @unique
+  title     String
+  isClosed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Canonical Host reference — always consistent with RoomParticipant.role = HOST
+  hostUserId String
+  host       User   @relation("RoomHost", fields: [hostUserId], references: [id])
+
+  // ─── Persisted Playback State ───────────────────────────────────────────────
+  // Used for:
+  //   1. Cold-start recovery after server restart
+  //   2. Late-joiner synchronization (combined with in-memory anchor)
+  // NOT the live authoritative state — that lives in RoomStateManager (memory).
+  currentVideoId        String   @default("")
+  playbackStatus        String   @default("PAUSED") // "PLAYING" | "PAUSED"
+  // The position in seconds at the time of the last checkpoint
+  lastPositionSeconds   Float    @default(0)
+  // When the checkpoint was written — used to compute elapsed time after restart
+  lastPositionUpdatedAt DateTime @default(now())
+  // Monotonically increasing version; async DB writes are rejected if stateVersion
+  // in DB has moved ahead of the checkpoint being written (prevents stale overwrites).
+  stateVersion          Int      @default(0)
+
+  sessions         Session[]
+  participants     RoomParticipant[]
+  playbackRequests PlaybackRequest[]
+
+  @@index([code])
+  @@index([isClosed])
+}
+
+// ─── RoomParticipant ─────────────────────────────────────────────────────────
+// Tracks every user's membership and role within a room.
+// The role here must ALWAYS stay consistent with Room.hostUserId:
+// - Exactly one participant per room has role = 'HOST', and their userId === Room.hostUserId
+// - Maintained via transactions in the service layer.
+model RoomParticipant {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  role      String   @default("PARTICIPANT") // "HOST" | "MODERATOR" | "PARTICIPANT"
+  isOnline  Boolean  @default(true)
+  isBanned  Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A user can only have one participant record per room
+  @@unique([roomId, userId])
+  @@index([roomId, isOnline])
+  @@index([roomId, role])
+  @@index([userId])
+}
+
+// ─── PlaybackRequest ─────────────────────────────────────────────────────────
+// Stores PARTICIPANT playback requests and their resolution.
+// Concurrency safety: status transitions from PENDING only once, enforced by
+// an atomic conditional UPDATE WHERE status = 'PENDING'.
+model PlaybackRequest {
+  id        String   @id @default(cuid())
+  roomId    String
+  // The user who made the request
+  requesterId String
+  // "PLAY" | "PAUSE" | "SEEK" | "CHANGE_VIDEO"
+  action    String
+  // JSON payload: { targetPositionSeconds?: number, videoId?: string }
+  payload   Json
+  // "PENDING" | "APPROVED" | "REJECTED"
+  status    String   @default("PENDING")
+  note      String?
+  // Set when resolved
+  resolvedById     String?
+  resolvedAt       DateTime?
+  rejectionReason  String?
+  createdAt        DateTime @default(now())
+
+  room       Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  requester  User @relation("RequestMadeBy", fields: [requesterId], references: [id])
+  resolvedBy User? @relation("RequestResolvedBy", fields: [resolvedById], references: [id])
+
+  // Fast filtering: find all pending requests in a room
+  @@index([roomId, status])
+  // Fast atomic update: find by id and check status in one query
+  @@index([id, status])
+  @@index([requesterId])
+}

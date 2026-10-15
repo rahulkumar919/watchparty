@@ -4,28 +4,36 @@ A real-time collaborative YouTube viewing platform with Socket.IO synchronizatio
 
 ## Live Demo
 
-**Frontend**: (Update with Vercel URL after deployment)
-**Backend**: https://watchpartybacked.onrender.com
+Frontend: https://watchparty-qzjv.vercel.app
+Backend: https://watchpartybacked.onrender.com
+Health: https://watchpartybacked.onrender.com/health
 
 ## Features
-
-- Real-time video synchronization across all participants
-- Room-based system with unique 8-character codes
-- YouTube video integration
-- WebSocket communication via Socket.IO
+- Real-time video synchronization
 - Three-tier role system (Host, Moderator, Participant)
-- Request/approval workflow for participants
+- Request/approval workflow
+- Room-based system with unique codes
+- WebSocket communication via Socket.IO
+- JWT authentication
 - Real-time chat
-- Drift correction for playback sync
 
-## Role System
+See ARCHITECTURE.md for technical details.
 
-| Feature | Host | Moderator | Participant |
-|---------|------|-----------|-------------|
-| Watch video | Yes | Yes | Yes |
-| Play/Pause | Direct | Direct | Request only |
-| Seek video | Direct | Direct | Request only |
-| Change video | Direct | Direct | Request only |
-| Approve/Reject | Yes | Yes | No |
-| Promote roles | Yes | No | No |
-| Remove users | Yes | No | No |
+## Quick Start
+
+git clone https://github.com/rahulkumar919/watchparty.git
+cd watchparty
+npm install
+npm run db:generate --workspace=apps/server
+npm run db:migrate --workspace=apps/server
+npm run dev --workspace=apps/server
+npm run dev --workspace=apps/web
+
+## Tech Stack
+Frontend: Next.js 16, TypeScript, Socket.IO Client
+Backend: Node.js, Express, Socket.IO, Prisma, PostgreSQL
+
+## Contact
+Developer: Rahul Kumar
+Email: hr@web3task.com
+GitHub: @rahulkumar919

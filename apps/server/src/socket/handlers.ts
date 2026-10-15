@@ -14,6 +14,7 @@
 
 import { Server, Socket } from 'socket.io';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -225,7 +226,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── seek ────────────────────────────────────────────────────────────────────
-  socket.on('seek', async (payload, callback) => {
+  socket.on('seek', async (payload: z.infer<typeof SeekPayloadSchema>, callback?: (response: SocketResponse) => void) => {
     const validation = validatePayload(SeekPayloadSchema, payload);
     if (!validation.valid) return callback?.(validation.response);
 
@@ -244,7 +245,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── change_video ─────────────────────────────────────────────────────────────
-  socket.on('change_video', async (payload, callback) => {
+  socket.on('change_video', async (payload: z.infer<typeof ChangeVideoPayloadSchema>, callback?: (response: SocketResponse<{ videoId: string }>) => void) => {
     const validation = validatePayload(ChangeVideoPayloadSchema, payload);
     if (!validation.valid) return callback?.(validation.response);
 
@@ -266,7 +267,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── request_playback_action ─────────────────────────────────────────────────
-  socket.on('request_playback_action', async (payload, callback) => {
+  socket.on('request_playback_action', async (payload: z.infer<typeof RequestPlaybackActionPayloadSchema>, callback: (response: SocketResponse<import('@watchparty/types').PlaybackRequestDTO>) => void) => {
     const validation = validatePayload(RequestPlaybackActionPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
@@ -311,7 +312,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── resolve_playback_request ─────────────────────────────────────────────────
-  socket.on('resolve_playback_request', async (payload, callback) => {
+  socket.on('resolve_playback_request', async (payload: z.infer<typeof ResolvePlaybackRequestPayloadSchema>, callback: (response: SocketResponse) => void) => {
     const validation = validatePayload(ResolvePlaybackRequestPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
@@ -374,7 +375,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── assign_role ──────────────────────────────────────────────────────────────
-  socket.on('assign_role', async (payload, callback) => {
+  socket.on('assign_role', async (payload: z.infer<typeof AssignRolePayloadSchema>, callback: (response: SocketResponse) => void) => {
     const validation = validatePayload(AssignRolePayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
@@ -426,7 +427,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── remove_participant ────────────────────────────────────────────────────────
-  socket.on('remove_participant', async (payload, callback) => {
+  socket.on('remove_participant', async (payload: z.infer<typeof RemoveParticipantPayloadSchema>, callback: (response: SocketResponse) => void) => {
     const validation = validatePayload(RemoveParticipantPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
@@ -453,7 +454,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
 
     // DB-first: update ban status and revoke session before touching memory
     try {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await tx.roomParticipant.update({
           where: { roomId_userId: { roomId, userId: targetUserId } },
           data: { isBanned: ban ?? false, isOnline: false },
@@ -498,7 +499,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── transfer_host ─────────────────────────────────────────────────────────────
-  socket.on('transfer_host', async (payload, callback) => {
+  socket.on('transfer_host', async (payload: z.infer<typeof TransferHostPayloadSchema>, callback: (response: SocketResponse) => void) => {
     const validation = validatePayload(TransferHostPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
@@ -524,7 +525,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
 
     // DB transaction: update Room.hostUserId + both participant roles atomically
     try {
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Update the room's canonical hostUserId
         await tx.room.update({
           where: { id: roomId },
@@ -562,7 +563,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── send_message ─────────────────────────────────────────────────────────────
-  socket.on('send_message', async (payload, callback) => {
+  socket.on('send_message', async (payload: z.infer<typeof SendMessagePayloadSchema>, callback: (response: SocketResponse<import('@watchparty/types').ChatMessageDTO>) => void) => {
     // 1. Validate and sanitise payload (body trimmed by Zod transform)
     const validation = validatePayload(SendMessagePayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
@@ -603,7 +604,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
   });
 
   // ── sync_ping ────────────────────────────────────────────────────────────────
-  socket.on('sync_ping', (clientSendTimestampMs, callback) => {
+  socket.on('sync_ping', (clientSendTimestampMs: number, callback: (serverReceivedTimestampMs: number) => void) => {
     callback(Date.now());
   });
 

@@ -19,6 +19,7 @@
 
 import { PlaybackRequestDTO, PlaybackAction } from '@watchparty/types';
 import { prisma } from '../db/prisma';
+import type { PlaybackRequest, User } from '@prisma/client';
 
 /**
  * Creates a new PENDING playback request.
@@ -140,7 +141,7 @@ export async function getPendingRequests(roomId: string): Promise<PlaybackReques
     orderBy: { createdAt: 'asc' },
   });
 
-  return requests.map((r) => ({
+  return requests.map((r: PlaybackRequest & { requester: User }) => ({
     id: r.id,
     requesterId: r.requesterId,
     requesterDisplayName: r.requester.displayName,

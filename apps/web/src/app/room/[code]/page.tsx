@@ -11,7 +11,7 @@ import { useChat } from '@/hooks/useChat';
 import { useYouTubePlayer } from '@/hooks/useYouTubePlayer';
 import { useDriftCorrection } from '@/hooks/useDriftCorrection';
 import { loadSession, clearSession } from '@/lib/session';
-import type { Role, PlaybackRequestDTO } from '@watchparty/types';
+import type { Role, PlaybackRequestDTO, SocketResponse, SyncStatePayload, ParticipantDTO, PlaybackUpdatedPayload, ChatMessageDTO } from '@watchparty/types';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 function formatTime(s: number) {
@@ -101,7 +101,7 @@ export default function RoomPage() {
     if (!socket || !session || joinedRef.current || connStatus !== 'connected') return;
     joinedRef.current = true; setLoadError(null);
     const tid = setTimeout(() => { if (!state.isLoaded) setLoadError('Server did not respond. Please retry.'); }, 10_000);
-    socket.emit('join_room', { roomCode }, (res) => {
+    socket.emit('join_room', { roomCode }, (res: SocketResponse<SyncStatePayload>) => {
       clearTimeout(tid);
       if (!res.success) { setLoadError(res.error?.message ?? 'Failed to join.'); return; }
       if (res.data && !state.isLoaded) dispatch({ type: 'SYNC_STATE', payload: res.data });
@@ -151,7 +151,7 @@ export default function RoomPage() {
   const [showBanner, setShowBanner] = useState(true);
   useDriftCorrection(socket, state.playback, controls);
 
-  const [initialChatMessages, setInitialChatMessages] = useState<import('@watchparty/types').ChatMessageDTO[]>([]);
+  const [initialChatMessages, setInitialChatMessages] = useState<ChatMessageDTO[]>([]);
   const chatHistorySeededRef = useRef(false);
 
   const [sideTab, setSideTab] = useState<'chat' | 'people' | 'requests'>('people');
@@ -178,13 +178,13 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!socket) return;
-    socket.on('user_joined', p => addToast(`${p.displayName} joined`, 'info'));
-    socket.on('user_left', p => addToast(`${p.displayName} left`, 'info'));
-    socket.on('role_assigned', p => addToast(`${p.displayName} is now ${p.newRole}`, 'info'));
-    socket.on('participant_removed', p => addToast(`${p.displayName} was ${p.isBanned ? 'banned' : 'kicked'}`, 'warning'));
-    socket.on('host_transferred', p => addToast(`👑 ${p.newHostDisplayName} is now Host`, 'info'));
-    socket.on('error_notification', e => addToast(e.message, 'error'));
-    socket.on('playback_request_resolved', p => {
+    socket.on('user_joined', (p: ParticipantDTO) => addToast(`${p.displayName} joined`, 'info'));
+    socket.on('user_left', (p: { userId: string; displayName: string; reason?: 'left' | 'disconnected' }) => addToast(`${p.displayName} left`, 'info'));
+    socket.on('role_assigned', (p: { userId: string; displayName: string; newRole: Role; updatedByUserId: string; updatedByDisplayName: string }) => addToast(`${p.displayName} is now ${p.newRole}`, 'info'));
+    socket.on('participant_removed', (p: { userId: string; displayName: string; isBanned: boolean; removedByDisplayName: string }) => addToast(`${p.displayName} was ${p.isBanned ? 'banned' : 'kicked'}`, 'warning'));
+    socket.on('host_transferred', (p: { previousHostUserId: string; previousHostDisplayName: string; newHostUserId: string; newHostDisplayName: string }) => addToast(`👑 ${p.newHostDisplayName} is now Host`, 'info'));
+    socket.on('error_notification', (e: { code: string; message: string }) => addToast(e.message, 'error'));
+    socket.on('playback_request_resolved', (p: { requestId: string; status: 'APPROVED' | 'REJECTED'; resolvedByDisplayName: string; actionApplied: boolean; rejectionReason?: string }) => {
       if (p.status === 'APPROVED') addToast('Request approved ✓', 'success');
       else addToast(`Request rejected${p.rejectionReason ? `: ${p.rejectionReason}` : ''}`, 'warning');
     });
@@ -200,7 +200,7 @@ export default function RoomPage() {
   const handleChangeVideo = useCallback(() => {
     if (!socket || !videoInput.trim()) return;
     guard('change_video', done => {
-      socket.emit('change_video', { videoUrlOrId: videoInput.trim() }, res => {
+      socket.emit('change_video', { videoUrlOrId: videoInput.trim() }, (res: SocketResponse<{ videoId: string }>) => {
         done();
         if (res.success) { addToast('Video changed', 'success'); setVideoInput(''); setShowVideoInput(false); }
         else addToast(res.error?.message ?? 'Failed', 'error');
@@ -215,7 +215,7 @@ export default function RoomPage() {
         action: reqAction, note: reqNote.trim() || undefined,
         targetPositionSeconds: reqAction === 'SEEK' ? computeCurrentPosition() : undefined,
         videoUrlOrId: reqAction === 'CHANGE_VIDEO' ? reqVideoUrl.trim() || undefined : undefined,
-      }, res => {
+      }, (res: SocketResponse<PlaybackRequestDTO>) => {
         done();
         if (res.success) { addToast('Request sent', 'success'); setShowReqModal(false); setReqNote(''); setReqVideoUrl(''); }
         else addToast(res.error?.message ?? 'Failed', 'error');
@@ -225,7 +225,7 @@ export default function RoomPage() {
 
   const handleResolve = useCallback((id: string, decision: 'APPROVED' | 'REJECTED') => {
     guard(`resolve:${id}`, done => {
-      socket?.emit('resolve_playback_request', { requestId: id, decision }, res => {
+      socket?.emit('resolve_playback_request', { requestId: id, decision }, (res: SocketResponse) => {
         done();
         if (!res.success) addToast(res.error?.message ?? 'Failed', 'error');
       });
@@ -234,7 +234,7 @@ export default function RoomPage() {
 
   const handleAssignRole = useCallback((uid: string, newRole: 'MODERATOR' | 'PARTICIPANT') => {
     guard(`assign:${uid}`, done => {
-      socket?.emit('assign_role', { targetUserId: uid, newRole }, res => {
+      socket?.emit('assign_role', { targetUserId: uid, newRole }, (res: SocketResponse) => {
         done();
         if (res.success) { setMenuUserId(null); addToast('Role updated', 'success'); }
         else addToast(res.error?.message ?? 'Failed', 'error');
@@ -244,7 +244,7 @@ export default function RoomPage() {
 
   const handleKick = useCallback((uid: string, ban: boolean) => {
     guard(`kick:${uid}`, done => {
-      socket?.emit('remove_participant', { targetUserId: uid, ban }, res => {
+      socket?.emit('remove_participant', { targetUserId: uid, ban }, (res: SocketResponse) => {
         done();
         if (res.success) { setMenuUserId(null); addToast(ban ? 'User banned' : 'User kicked', 'success'); }
         else addToast(res.error?.message ?? 'Failed', 'error');
@@ -254,7 +254,7 @@ export default function RoomPage() {
 
   const handleTransferHost = useCallback((uid: string) => {
     guard(`transfer:${uid}`, done => {
-      socket?.emit('transfer_host', { targetUserId: uid }, res => {
+      socket?.emit('transfer_host', { targetUserId: uid }, (res: SocketResponse) => {
         done();
         if (res.success) { setMenuUserId(null); addToast('Host transferred', 'success'); }
         else addToast(res.error?.message ?? 'Failed', 'error');

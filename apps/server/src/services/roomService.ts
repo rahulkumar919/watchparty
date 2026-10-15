@@ -15,6 +15,7 @@ import { customAlphabet } from 'nanoid';
 import { v4 as uuidv4 } from 'uuid';
 import { Role, ParticipantDTO, PlaybackRequestDTO, SyncStatePayload } from '@watchparty/types';
 import { prisma } from '../db/prisma';
+import type { Prisma } from '@prisma/client';
 import { roomStateManager, RoomParticipantState } from '../state/RoomStateManager';
 import { issueSession } from './sessionService';
 import { computeRecoveryState } from '../utils/roomRecovery';
@@ -46,7 +47,7 @@ export async function createRoom(
 
   const sessionId = `sess_${uuidv4()}`;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // 1. Create the User
     const user = await tx.user.create({
       data: { displayName },
@@ -149,7 +150,7 @@ export async function joinRoom(
   if (!room) throw new Error('ROOM_NOT_FOUND');
   if (room.isClosed) throw new Error('ROOM_CLOSED');
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // 2. Create the User
     const user = await tx.user.create({
       data: { displayName },
@@ -232,7 +233,7 @@ export async function loadRoomIntoMemory(roomId: string, roomCode: string): Prom
     room.stateVersion,
   );
 
-  const participants: RoomParticipantState[] = room.participants.map((p) => ({
+  const participants: RoomParticipantState[] = room.participants.map((p: { userId: string; user: { displayName: string }; role: string; joinedAt: Date }) => ({
     userId: p.userId,
     displayName: p.user.displayName,
     role: p.role as Role,

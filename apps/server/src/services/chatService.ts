@@ -17,6 +17,7 @@
 
 import { ChatMessageDTO } from '@watchparty/types';
 import { prisma } from '../db/prisma';
+import type { ChatMessage } from '@prisma/client';
 
 /** Maximum number of recent messages returned for history/join sync. */
 export const CHAT_HISTORY_LIMIT = 50;
@@ -36,12 +37,12 @@ export async function createChatMessage(
   });
 
   return {
-    id:          msg.id,
-    roomId:      msg.roomId,
-    userId:      msg.userId,
+    id: msg.id,
+    roomId: msg.roomId,
+    userId: msg.userId,
     displayName: msg.displayName,
-    body:        msg.body,
-    createdAt:   msg.createdAt.toISOString(),
+    body: msg.body,
+    createdAt: msg.createdAt.toISOString(),
   };
 }
 
@@ -59,27 +60,27 @@ export async function createChatMessage(
 export async function getRoomChatHistory(roomId: string): Promise<ChatMessageDTO[]> {
   try {
     const rows = await prisma.chatMessage.findMany({
-      where:   { roomId },
+      where: { roomId },
       orderBy: { createdAt: 'desc' },
-      take:    CHAT_HISTORY_LIMIT,
+      take: CHAT_HISTORY_LIMIT,
       select: {
-        id:          true,
-        roomId:      true,
-        userId:      true,
+        id: true,
+        roomId: true,
+        userId: true,
         displayName: true,
-        body:        true,
-        createdAt:   true,
+        body: true,
+        createdAt: true,
       },
     });
 
     // Reverse to get chronological (oldest-first) order for display
-    return rows.reverse().map((m) => ({
-      id:          m.id,
-      roomId:      m.roomId,
-      userId:      m.userId,
+    return rows.reverse().map((m: ChatMessage) => ({
+      id: m.id,
+      roomId: m.roomId,
+      userId: m.userId,
       displayName: m.displayName,
-      body:        m.body,
-      createdAt:   m.createdAt.toISOString(),
+      body: m.body,
+      createdAt: m.createdAt.toISOString(),
     }));
   } catch (err) {
     console.error('[ChatService] Failed to load chat history:', err);

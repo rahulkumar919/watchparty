@@ -13,7 +13,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@watchparty/types": "^1.0.0",
+    "@watchparty/types": "*",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

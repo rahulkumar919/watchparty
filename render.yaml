@@ -21,9 +21,8 @@ services:
     region: oregon          # change to singapore/frankfurt if your users are closer
     plan: free              # upgrade to starter ($7/mo) for always-on + no sleep
 
-    rootDir: apps/server
-    buildCommand: npm install && npx tsc --project packages/types/tsconfig.json && cd apps/server && npm run db:migrate:deploy && npm run build
-    startCommand: node dist/index.js
+    buildCommand: npm ci && npm run build --workspace=packages/types && npm run db:generate --workspace=apps/server && npm run db:migrate:deploy --workspace=apps/server && npm run build --workspace=apps/server
+    startCommand: npm run start --workspace=apps/server
 
     healthCheckPath: /health
 
@@ -53,9 +52,8 @@ services:
     runtime: node
     region: oregon
 
-    rootDir: apps/web
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
+    buildCommand: npm ci && npm run build --workspace=packages/types && npm run build --workspace=apps/web
+    startCommand: npm run start --workspace=apps/web
 
     envVars:
       - key: NODE_ENV

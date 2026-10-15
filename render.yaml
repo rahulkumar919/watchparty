@@ -22,7 +22,7 @@ services:
     plan: free              # upgrade to starter ($7/mo) for always-on + no sleep
 
     rootDir: apps/server
-    buildCommand: npm install && npm run db:migrate:deploy && npm run build
+    buildCommand: npm install && npx tsc --project packages/types/tsconfig.json && cd apps/server && npm run db:migrate:deploy && npm run build
     startCommand: node dist/index.js
 
     healthCheckPath: /health

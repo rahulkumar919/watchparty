@@ -127,3 +127,10 @@ Backend: Node.js, Express, Socket.IO, Prisma, PostgreSQL
 Developer: Rahul Kumar
 Email: hr@web3task.com
 GitHub: @rahulkumar919
+
+## 📊 Application Flow
+
+![Watch Party System Flow](docs/flow.jpeg)
+
+*Visual diagram showing the complete user journey from home page to synchronized viewing*
+

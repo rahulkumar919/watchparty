@@ -1,0 +1,400 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Navigate to backend repository directory": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089551827
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089571069
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089621689
+      }
+    ],
+    "1.2 Run `npx prisma migrate diff --from-empty --to-schema-datamodel apps/server/prisma/schema.prisma --script` to generate SQL": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089551928
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089631669
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089731126
+      }
+    ],
+    "1.3 Save the output for the next task": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089551976
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089743101
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089743324
+      }
+    ],
+    "1.4 Verify the SQL includes all tables: User, Session, Room, RoomParticipant, PlaybackRequest, ChatMessage": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552018
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089755542
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089755836
+      }
+    ],
+    "2.1 Create `apps/server/prisma/migrations/` directory": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552061
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089767415
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089947119
+      }
+    ],
+    "2.2 Generate timestamp in format `YYYYMMDDHHMMSS` (e.g., 20261015182500)": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552101
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089948529
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089949046
+      }
+    ],
+    "2.3 Create `apps/server/prisma/migrations/{timestamp}_baseline/` subdirectory": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552142
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089950084
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089950532
+      }
+    ],
+    "2.4 Save the SQL from task 1 to `apps/server/prisma/migrations/{timestamp}_baseline/migration.sql`": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552197
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089951582
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089952386
+      }
+    ],
+    "2.5 Create `apps/server/prisma/migrations/migration_lock.toml` with content: `provider = \"postgresql\"`": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552257
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089992072
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089992973
+      }
+    ],
+    "3.1 Stage the new migration files: `git add apps/server/prisma/migrations/`": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552297
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090001388
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090367782
+      }
+    ],
+    "3.2 Commit with message: \"feat: add baseline migration for existing schema\"": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552338
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090368542
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090369435
+      }
+    ],
+    "3.3 Push to GitHub: `git push origin main`": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552383
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090370215
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090370935
+      }
+    ],
+    "3.4 Verify commit appears on GitHub": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552431
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090371613
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090372714
+      }
+    ],
+    "4.1 Note the migration timestamp from task 2": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552475
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090383330
+      },
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090384131
+      }
+    ],
+    "4.2 In Render dashboard, update build command to: `npm ci && npm run db:generate --workspace=apps/server && npm run build && npx prisma migrate resolve --applied {timestamp}_baseline --schema=apps/server/prisma/schema.prisma && npm run db:migrate:deploy --workspace=apps/server`": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552557
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090627595
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090628768
+      }
+    ],
+    "4.3 Trigger manual deploy in Render": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552599
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090629498
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090630432
+      }
+    ],
+    "4.4 Monitor build logs for success": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552646
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090631214
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090632053
+      }
+    ],
+    "5.1 Check Render build logs show no P3005 error": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552693
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090643243
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090644172
+      }
+    ],
+    "5.2 Verify `prisma migrate resolve` command executes successfully": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552732
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090656252
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090657031
+      }
+    ],
+    "5.3 Verify `prisma migrate deploy` completes without errors": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552774
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090657932
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090658846
+      }
+    ],
+    "5.4 Verify server starts and health endpoint responds": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552816
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090659632
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090660489
+      }
+    ],
+    "5.5 Test the deployed server endpoint": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552873
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090655533
+      },
+      {
+        "executionId": "0b3ea345-b4bd-481b-901b-1e1807a4d308",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792090661501
+      }
+    ],
+    "6.1 In Render dashboard, update build command back to: `npm ci && npm run db:generate --workspace=apps/server && npm run build && npm run db:migrate:deploy --workspace=apps/server`": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552939
+      }
+    ],
+    "6.2 Document that future deployments will use normal migration flow": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089552978
+      }
+    ],
+    "6.3 Verify next deployment still works correctly": [
+      {
+        "executionId": "c2761744-62d0-4fc6-9018-a9cb28c15f46",
+        "chatSessionId": "sess_ade3a338-1409-445a-8f00-7f2770493818",
+        "timestamp": 1792089553023
+      }
+    ]
+  }
+}

@@ -100,9 +100,11 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(JoinRoomPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
+    const { roomCode: payloadRoomCode } = validation.data;
+
     // Validate that the room code in the payload matches the session
     // (prevents using a valid session to join a different room)
-    if (validation.data.roomCode !== roomCode) {
+    if (payloadRoomCode !== roomCode) {
       return callback({
         success: false,
         error: { code: 'FORBIDDEN', message: 'Room code does not match session' },
@@ -192,12 +194,14 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(PlayPayloadSchema, payload);
     if (!validation.valid) return callback?.(validation.response);
 
+    const { positionSeconds } = validation.data;
+
     const role = getCurrentRole(socket);
     if (!role || !canPerformAction(role, 'play')) {
       return callback?.({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
     }
 
-    const result = await applyPlay(roomCode, validation.data.positionSeconds, userId, displayName);
+    const result = await applyPlay(roomCode, positionSeconds, userId, displayName);
     if (!result) {
       return callback?.({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to apply play' } });
     }
@@ -211,12 +215,14 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(PausePayloadSchema, payload);
     if (!validation.valid) return callback?.(validation.response);
 
+    const { positionSeconds } = validation.data;
+
     const role = getCurrentRole(socket);
     if (!role || !canPerformAction(role, 'pause')) {
       return callback?.({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
     }
 
-    const result = await applyPause(roomCode, validation.data.positionSeconds, userId, displayName);
+    const result = await applyPause(roomCode, positionSeconds, userId, displayName);
     if (!result) {
       return callback?.({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to apply pause' } });
     }
@@ -230,12 +236,14 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(SeekPayloadSchema, payload);
     if (!validation.valid) return callback?.(validation.response);
 
+    const { targetPositionSeconds } = validation.data;
+
     const role = getCurrentRole(socket);
     if (!role || !canPerformAction(role, 'seek')) {
       return callback?.({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
     }
 
-    const result = await applySeek(roomCode, validation.data.targetPositionSeconds, userId, displayName);
+    const result = await applySeek(roomCode, targetPositionSeconds, userId, displayName);
     if (!result) {
       return callback?.({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to apply seek' } });
     }
@@ -249,12 +257,14 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(ChangeVideoPayloadSchema, payload);
     if (!validation.valid) return callback?.(validation.response);
 
+    const { videoUrlOrId } = validation.data;
+
     const role = getCurrentRole(socket);
     if (!role || !canPerformAction(role, 'change_video')) {
       return callback?.({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
     }
 
-    const result = await applyChangeVideo(roomCode, validation.data.videoUrlOrId, userId, displayName);
+    const result = await applyChangeVideo(roomCode, videoUrlOrId, userId, displayName);
     if (!result) {
       return callback?.({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to change video' } });
     }
@@ -271,6 +281,8 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(RequestPlaybackActionPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
+    const { action, targetPositionSeconds, videoUrlOrId, note } = validation.data;
+
     const role = getCurrentRole(socket);
     if (!role || !canPerformAction(role, 'request_playback_action')) {
       return callback({ success: false, error: { code: 'FORBIDDEN', message: 'Not a room member' } });
@@ -278,8 +290,8 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
 
     // Resolve video ID if provided
     let resolvedVideoId: string | undefined;
-    if (validation.data.videoUrlOrId) {
-      const extracted = extractVideoId(validation.data.videoUrlOrId);
+    if (videoUrlOrId) {
+      const extracted = extractVideoId(videoUrlOrId);
       if (!extracted) {
         return callback({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid YouTube URL or video ID' } });
       }
@@ -287,7 +299,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     }
 
     const requestPayload = {
-      targetPositionSeconds: validation.data.targetPositionSeconds,
+      targetPositionSeconds,
       videoId: resolvedVideoId,
     };
 
@@ -295,9 +307,9 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
       roomId,
       userId,
       displayName,
-      validation.data.action as PlaybackAction,
+      action as PlaybackAction,
       requestPayload,
-      validation.data.note,
+      note,
     );
 
     // Notify Hosts and Moderators in the room
@@ -316,17 +328,19 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(ResolvePlaybackRequestPayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
+    const { requestId, decision, reason } = validation.data;
+
     const role = getCurrentRole(socket);
     if (!role || !canPerformAction(role, 'resolve_playback_request')) {
       return callback({ success: false, error: { code: 'FORBIDDEN', message: 'Insufficient permissions' } });
     }
 
     const resolveResult = await resolvePlaybackRequest(
-      validation.data.requestId,
+      requestId,
       roomId,
       userId,
-      validation.data.decision,
-      validation.data.reason,
+      decision,
+      reason,
     );
 
     if (!resolveResult.success) {
@@ -342,7 +356,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     let actionApplied = false;
 
     // Execute the approved action through the standard playback pipeline
-    if (validation.data.decision === 'APPROVED') {
+    if (decision === 'APPROVED') {
       const { request } = resolveResult;
       let playbackResult = null;
 
@@ -364,11 +378,11 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     }
 
     io.to(roomCode).emit('playback_request_resolved', {
-      requestId: validation.data.requestId,
-      status: validation.data.decision,
+      requestId,
+      status: decision,
       resolvedByDisplayName: displayName,
       actionApplied,
-      rejectionReason: validation.data.reason,
+      rejectionReason: reason,
     });
 
     callback({ success: true });
@@ -568,6 +582,8 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     const validation = validatePayload(SendMessagePayloadSchema, payload);
     if (!validation.valid) return callback(validation.response);
 
+    const { body } = validation.data;
+
     // 2. Confirm the sender is still an active member of this room.
     //    getCurrentRole returns null for unknown/removed participants.
     const role = getCurrentRole(socket);
@@ -585,7 +601,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
         roomId,
         userId,
         displayName,     // from trusted socket.data.session, NEVER from payload
-        validation.data.body,
+        body,
       );
     } catch (err) {
       console.error('[send_message] DB write failed:', err);

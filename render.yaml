@@ -21,7 +21,7 @@ services:
     region: oregon          # change to singapore/frankfurt if your users are closer
     plan: free              # upgrade to starter ($7/mo) for always-on + no sleep
 
-    buildCommand: npm ci && npm run build --workspace=packages/types && npm run db:generate --workspace=apps/server && npm run db:migrate:deploy --workspace=apps/server && npm run build --workspace=apps/server
+    buildCommand: npm ci && npm run db:generate --workspace=apps/server && npm run build && npm run db:migrate:deploy --workspace=apps/server
     startCommand: npm run start --workspace=apps/server
 
     healthCheckPath: /health
@@ -52,7 +52,7 @@ services:
     runtime: node
     region: oregon
 
-    buildCommand: npm ci && npm run build --workspace=packages/types && npm run build --workspace=apps/web
+    buildCommand: npm ci && npm run build
     startCommand: npm run start --workspace=apps/web
 
     envVars:

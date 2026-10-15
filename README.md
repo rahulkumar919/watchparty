@@ -125,7 +125,7 @@ Backend: Node.js, Express, Socket.IO, Prisma, PostgreSQL
 
 ## Contact
 Developer: Rahul Kumar
-Email: hr@web3task.com
+Email: rahulkumar9508548671@gmail.com
 GitHub: @rahulkumar919
 
 ## 📊 Application Flow

@@ -1,4 +1,4 @@
-#  YouTube Watch Party
+<img width="1280" height="960" alt="flow" src="https://github.com/user-attachments/assets/e0f30ec7-dfda-413f-ba70-609cdfa89d3f" />#  YouTube Watch Party
 
 **Watch YouTube together, in real time — from anywhere.**
 
@@ -131,6 +131,8 @@ GitHub: @rahulkumar919
 ## 📊 Application Flow
 
 ![Watch Party System Flow](docs/flow.jpeg)
+<img width="1280" height="960" alt="flow" src="https://github.com/user-attachments/assets/ee590de6-fad9-463a-9d3f-8345ccbffcee" />
+
 
 *Visual diagram showing the complete user journey from home page to synchronized viewing*
 

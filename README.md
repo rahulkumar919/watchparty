@@ -35,5 +35,38 @@ Backend: Node.js, Express, Socket.IO, Prisma, PostgreSQL
 
 ## Contact
 Developer: Rahul Kumar
-Email: hr@web3task.com
+Email: rahulkumar9508548671@gmail.com
 GitHub: @rahulkumar919
+
+
+## Application Flow
+
+HOME PAGE → Create Room OR Join Room
+    │                      │
+    ├─ Create Room        ├─ Join Room
+    │  (Become Host)      │  (Validate Code)
+    │                     │
+    └─────────┬───────────┘
+              │
+              ▼
+        Watch Room Page
+        (WebSocket Connected)
+              │
+              ▼
+         Check Role
+         /         \
+    HOST/MOD    PARTICIPANT
+        │            │
+    Direct      Request
+    Control     Workflow
+        │            │
+        └─────┬──────┘
+              │
+              ▼
+    Backend Validates
+              │
+              ▼
+    Broadcast to All
+
+
+

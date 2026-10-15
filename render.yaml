@@ -1,0 +1,67 @@
+## WatchParty — Render deployment manifest
+## Docs: https://render.com/docs/blueprint-spec
+##
+## Two services:
+##   watchparty-server  → Node.js  (Express + Socket.IO)
+##   watchparty-web     → Next.js  (static-export-free, SSR not used)
+##
+## Usage:
+##   1. Fork / push this repo to GitHub.
+##   2. New > Blueprint in the Render dashboard and point it here.
+##   3. Render will read this file and create both services automatically.
+##   4. Add the secrets listed under envVarGroups in the dashboard.
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────
+  # BACKEND — Express + Socket.IO
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: watchparty-server
+    runtime: node
+    region: oregon          # change to singapore/frankfurt if your users are closer
+    plan: free              # upgrade to starter ($7/mo) for always-on + no sleep
+
+    rootDir: apps/server
+    buildCommand: npm install && npm run db:migrate:deploy && npm run build
+    startCommand: node dist/index.js
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # ── Secrets — set these in the Render dashboard, NOT here ────────────
+      - key: DATABASE_URL
+        sync: false          # Render will prompt you to enter the real value
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # ── CORS — set to the web service URL after first deploy ─────────────
+      - key: CORS_ORIGIN
+        sync: false          # e.g. https://watchparty-web.onrender.com
+      - key: JWT_EXPIRES_IN
+        value: 24h
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # FRONTEND — Next.js
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: watchparty-web
+    runtime: node
+    region: oregon
+
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # ── Point at the backend service URL ──────────────────────────────
+      - key: NEXT_PUBLIC_API_URL
+        sync: false          # e.g. https://watchparty-server.onrender.com
+      - key: NEXT_PUBLIC_SOCKET_URL
+        sync: false          # same value as NEXT_PUBLIC_API_URL

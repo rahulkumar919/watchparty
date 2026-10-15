@@ -262,6 +262,7 @@ export function buildSyncStatePayload(
   roomCode: string,
   currentUserId: string,
   pendingRequests: PlaybackRequestDTO[],
+  recentMessages: import('@watchparty/types').ChatMessageDTO[],
 ): SyncStatePayload | null {
   const room = roomStateManager.getRoom(roomCode);
   if (!room) return null;
@@ -296,5 +297,6 @@ export function buildSyncStatePayload(
     },
     participants,
     pendingRequests,
+    recentMessages,
   };
 }

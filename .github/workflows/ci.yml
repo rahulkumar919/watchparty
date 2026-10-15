@@ -1,0 +1,91 @@
+## WatchParty — Continuous Integration
+##
+## Runs on every push to main and on every pull request.
+## Checks:
+##   1. TypeScript — tsc --noEmit (server + web)
+##   2. Unit tests  — vitest (no DB required)
+##
+## Integration tests require a live Neon DB and are intentionally excluded from
+## this pipeline. Run them locally with: npm run test:integration --workspace=apps/server
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ───────────────────────────────────────────────────────────────
+  # SERVER
+  # ───────────────────────────────────────────────────────────────
+  server:
+    name: Server — typecheck + unit tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: TypeScript — server
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+        env:
+          # Unit tests don't hit the DB but dotenv/config still loads
+          DATABASE_URL: postgresql://test:test@localhost/test
+          JWT_SECRET: ci-test-secret-not-real
+
+  # ───────────────────────────────────────────────────────────────
+  # FRONTEND
+  # ───────────────────────────────────────────────────────────────
+  web:
+    name: Web — typecheck + build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: TypeScript — web
+        run: npx tsc --noEmit
+
+      - name: Next.js build
+        run: npm run build
+        env:
+          # Placeholder URLs — build only validates the app compiles, not runtime behaviour
+          NEXT_PUBLIC_API_URL:    http://localhost:4000
+          NEXT_PUBLIC_SOCKET_URL: http://localhost:4000

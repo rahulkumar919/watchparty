@@ -20,13 +20,35 @@ import { registerSocketHandlers } from './socket/handlers';
 import { prisma } from './db/prisma';
 
 async function main() {
-  // Verify database connection on startup
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    console.log('[DB] Connected to PostgreSQL ✓');
-  } catch (err) {
-    console.error('[DB] Failed to connect to PostgreSQL:', err);
-    process.exit(1);
+  // Verify database connection on startup — retries to handle Neon cold-start wake-up.
+  // In development, a failed DB check is non-fatal: the server still starts so the
+  // REST/Socket API is available; any DB-dependent request will fail with a clear error.
+  const MAX_DB_RETRIES = config.isProduction ? 5 : 3;
+  const DB_RETRY_DELAY_MS = 3000;
+  let dbConnected = false;
+  for (let attempt = 1; attempt <= MAX_DB_RETRIES; attempt++) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('[DB] Connected to PostgreSQL ✓');
+      dbConnected = true;
+      break;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.split('\n')[0] : String(err);
+      console.warn(`[DB] Connection attempt ${attempt}/${MAX_DB_RETRIES} failed: ${msg}`);
+      if (attempt < MAX_DB_RETRIES) {
+        console.log(`[DB] Retrying in ${DB_RETRY_DELAY_MS / 1000}s…`);
+        await new Promise((r) => setTimeout(r, DB_RETRY_DELAY_MS));
+      }
+    }
+  }
+  if (!dbConnected) {
+    if (config.isProduction) {
+      console.error('[DB] All connection attempts failed. Exiting (production).');
+      process.exit(1);
+    } else {
+      console.warn('[DB] Could not connect to PostgreSQL. Server will start anyway (dev mode).');
+      console.warn('[DB] DB-dependent endpoints will fail until a connection is available.');
+    }
   }
 
   const app = createApp();

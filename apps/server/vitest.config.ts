@@ -5,15 +5,16 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Unit tests run without a DB (fast, always run)
     include: ['src/**/*.test.ts'],
+    // Integration tests require DATABASE_URL and are excluded from default `test` run
+    exclude: ['src/tests/integration/**', 'src/tests/e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      exclude: ['src/index.ts', 'src/db/seed.ts', 'dist/**'],
+      exclude: ['src/index.ts', 'src/db/seed.ts', 'dist/**', 'src/tests/**'],
     },
-    // Ensure tests get a clean environment
     isolate: true,
-    // Set reasonable timeout for integration tests (socket connections)
     testTimeout: 10000,
     hookTimeout: 10000,
   },

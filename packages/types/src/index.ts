@@ -113,6 +113,26 @@ export const RemoveParticipantPayloadSchema = z.object({
   ban: z.boolean().optional().default(false),
 });
 
+export const TransferHostPayloadSchema = z.object({
+  targetUserId: z.string().cuid('Invalid user ID'),
+});
+
+/**
+ * Chat message payload — validated server-side before persist/broadcast.
+ * body: non-empty string, max 1000 chars (matches the DB column VarChar(1000)).
+ */
+export const SendMessagePayloadSchema = z.object({
+  body: z
+    .string()
+    .transform((s) => s.trim())
+    .pipe(
+      z
+        .string()
+        .min(1, 'Message cannot be empty')
+        .max(1000, 'Message must be 1000 characters or fewer'),
+    ),
+});
+
 // ---------------------------------------------------------------------------
 // Data Transfer Objects (DTOs) — shaped for client consumption
 // ---------------------------------------------------------------------------
@@ -138,6 +158,20 @@ export interface PlaybackRequestDTO {
   note?: string;
   createdAt: string; // ISO timestamp string
   resolvedAt?: string;
+}
+
+/**
+ * A single persisted chat message, safe for client consumption.
+ * Sender identity (displayName) is denormalized at write time so message
+ * history remains accurate even after a user's displayName changes.
+ */
+export interface ChatMessageDTO {
+  id: string;
+  roomId: string;
+  userId: string;
+  displayName: string;
+  body: string;
+  createdAt: string; // ISO timestamp string
 }
 
 export interface RoomPlaybackState {
@@ -180,6 +214,11 @@ export interface SyncStatePayload {
   participants: ParticipantDTO[];
   /** All PENDING requests in this room, sent only to HOST and MODERATOR */
   pendingRequests: PlaybackRequestDTO[];
+  /**
+   * The 50 most recent chat messages in chronological order.
+   * Sent to every joining member so they have context immediately.
+   */
+  recentMessages: ChatMessageDTO[];
 }
 
 export interface PlaybackUpdatedPayload {
@@ -203,12 +242,12 @@ export interface SocketResponse<T = void> {
   data?: T;
   error?: {
     code:
-      | 'UNAUTHORIZED'
-      | 'FORBIDDEN'
-      | 'BAD_REQUEST'
-      | 'NOT_FOUND'
-      | 'CONFLICT'
-      | 'INTERNAL_ERROR';
+    | 'UNAUTHORIZED'
+    | 'FORBIDDEN'
+    | 'BAD_REQUEST'
+    | 'NOT_FOUND'
+    | 'CONFLICT'
+    | 'INTERNAL_ERROR';
     message: string;
   };
 }
@@ -302,6 +341,27 @@ export interface ClientToServerEvents {
 
   /** Graceful departure. Updates isOnline, removes from Socket.IO room. */
   leave_room: () => void;
+
+  /**
+   * Transfer the Host role to another participant. Requires HOST.
+   * The caller becomes PARTICIPANT; the target becomes HOST.
+   * Room.hostUserId is updated atomically in the database.
+   */
+  transfer_host: (
+    payload: z.infer<typeof TransferHostPayloadSchema>,
+    callback: (response: SocketResponse) => void,
+  ) => void;
+
+  /**
+   * Send a chat message to the room.
+   * Sender identity is derived entirely from server-side session state —
+   * the client MUST NOT supply userId, displayName, or roomId.
+   * Body is trimmed and validated (1–1000 chars) before persistence.
+   */
+  send_message: (
+    payload: z.infer<typeof SendMessagePayloadSchema>,
+    callback: (response: SocketResponse<ChatMessageDTO>) => void,
+  ) => void;
 }
 
 /**
@@ -366,6 +426,24 @@ export interface ServerToClientEvents {
     code: string;
     message: string;
   }) => void;
+
+  /**
+   * The Host role has been transferred to a new participant.
+   * Broadcast to the whole room so every client can update their local state.
+   */
+  host_transferred: (payload: {
+    previousHostUserId: string;
+    previousHostDisplayName: string;
+    newHostUserId: string;
+    newHostDisplayName: string;
+  }) => void;
+
+  /**
+   * A new chat message has been persisted and broadcast to the room.
+   * All connected members of the room receive this event.
+   * Clients should deduplicate by message `id` to handle reconnect races.
+   */
+  message_received: (message: ChatMessageDTO) => void;
 }
 
 /**

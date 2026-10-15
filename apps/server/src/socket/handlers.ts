@@ -30,6 +30,8 @@ import {
   ResolvePlaybackRequestPayloadSchema,
   AssignRolePayloadSchema,
   RemoveParticipantPayloadSchema,
+  TransferHostPayloadSchema,
+  SendMessagePayloadSchema,
   Role,
   PlaybackAction,
 } from '@watchparty/types';
@@ -41,6 +43,7 @@ import {
   resolvePlaybackRequest,
   getPendingRequests,
 } from '../services/requestService';
+import { createChatMessage, getRoomChatHistory } from '../services/chatService';
 import { revokeSession } from '../services/sessionService';
 import { canPerformAction, canAssignRole } from '../utils/rbac';
 import { prisma } from '../db/prisma';
@@ -57,7 +60,7 @@ type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerE
 function validatePayload<T>(
   schema: z.ZodSchema<T>,
   data: unknown,
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): { valid: true; data: T } | { valid: false; response: SocketResponse<any> } {
   const result = schema.safeParse(data);
   if (!result.success) {
@@ -148,7 +151,10 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     // Fetch pending requests (only sent to HOST and MODERATOR in the SyncState)
     const pendingRequests = await getPendingRequests(roomId);
 
-    const syncState = buildSyncStatePayload(roomCode, userId, pendingRequests);
+    // Fetch recent chat history — non-blocking, returns [] on failure
+    const recentMessages = await getRoomChatHistory(roomId);
+
+    const syncState = buildSyncStatePayload(roomCode, userId, pendingRequests, recentMessages);
     if (!syncState) {
       return callback({
         success: false,
@@ -171,7 +177,13 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
       joinedAt: new Date().toISOString(),
     });
 
+    // Return full state in the ack (read by the frontend join_room callback)
     callback({ success: true, data: syncState });
+
+    // Also push sync_state as a server-initiated event so the useRoomState
+    // listener can set isLoaded = true.  This is the canonical path; the ack
+    // data acts only as a secondary safety-net (see page.tsx join_room handler).
+    socket.emit('sync_state', syncState);
   });
 
   // ── play ────────────────────────────────────────────────────────────────────
@@ -319,7 +331,7 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     if (!resolveResult.success) {
       const code = resolveResult.error === 'ALREADY_RESOLVED' ? 'CONFLICT'
         : resolveResult.error === 'CROSS_ROOM_ACCESS' ? 'FORBIDDEN'
-        : 'NOT_FOUND';
+          : 'NOT_FOUND';
       return callback({
         success: false,
         error: { code, message: resolveResult.error.replace(/_/g, ' ').toLowerCase() },
@@ -483,6 +495,111 @@ export function registerSocketHandlers(io: AppServer, socket: AppSocket): void {
     });
 
     callback({ success: true });
+  });
+
+  // ── transfer_host ─────────────────────────────────────────────────────────────
+  socket.on('transfer_host', async (payload, callback) => {
+    const validation = validatePayload(TransferHostPayloadSchema, payload);
+    if (!validation.valid) return callback(validation.response);
+
+    const role = getCurrentRole(socket);
+    if (role !== 'HOST') {
+      return callback({ success: false, error: { code: 'FORBIDDEN', message: 'Only the Host can transfer the host role' } });
+    }
+
+    const { targetUserId } = validation.data;
+
+    if (targetUserId === userId) {
+      return callback({ success: false, error: { code: 'BAD_REQUEST', message: 'You are already the Host' } });
+    }
+
+    const targetParticipant = roomStateManager.getParticipant(roomCode, targetUserId);
+    if (!targetParticipant) {
+      return callback({ success: false, error: { code: 'NOT_FOUND', message: 'Target user not in room' } });
+    }
+
+    if (targetParticipant.role === 'HOST') {
+      return callback({ success: false, error: { code: 'BAD_REQUEST', message: 'Target is already the Host' } });
+    }
+
+    // DB transaction: update Room.hostUserId + both participant roles atomically
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Update the room's canonical hostUserId
+        await tx.room.update({
+          where: { id: roomId },
+          data: { hostUserId: targetUserId },
+        });
+        // Demote current host to PARTICIPANT
+        await tx.roomParticipant.update({
+          where: { roomId_userId: { roomId, userId } },
+          data: { role: 'PARTICIPANT' },
+        });
+        // Promote target to HOST
+        await tx.roomParticipant.update({
+          where: { roomId_userId: { roomId, userId: targetUserId } },
+          data: { role: 'HOST' },
+        });
+      });
+    } catch (err) {
+      return callback({ success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to transfer host' } });
+    }
+
+    // Update in-memory state
+    roomStateManager.updateParticipantRole(roomCode, userId, 'PARTICIPANT');
+    roomStateManager.updateParticipantRole(roomCode, targetUserId, 'HOST');
+    roomStateManager.updateHostUserId(roomCode, targetUserId);
+
+    // Broadcast to the entire room
+    io.to(roomCode).emit('host_transferred', {
+      previousHostUserId: userId,
+      previousHostDisplayName: displayName,
+      newHostUserId: targetUserId,
+      newHostDisplayName: targetParticipant.displayName,
+    });
+
+    callback({ success: true });
+  });
+
+  // ── send_message ─────────────────────────────────────────────────────────────
+  socket.on('send_message', async (payload, callback) => {
+    // 1. Validate and sanitise payload (body trimmed by Zod transform)
+    const validation = validatePayload(SendMessagePayloadSchema, payload);
+    if (!validation.valid) return callback(validation.response);
+
+    // 2. Confirm the sender is still an active member of this room.
+    //    getCurrentRole returns null for unknown/removed participants.
+    const role = getCurrentRole(socket);
+    if (!role) {
+      return callback({
+        success: false,
+        error: { code: 'FORBIDDEN', message: 'You are not a member of this room' },
+      });
+    }
+
+    // 3. Persist — DB-first. Never broadcast before the write succeeds.
+    let message;
+    try {
+      message = await createChatMessage(
+        roomId,
+        userId,
+        displayName,     // from trusted socket.data.session, NEVER from payload
+        validation.data.body,
+      );
+    } catch (err) {
+      console.error('[send_message] DB write failed:', err);
+      return callback({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to save message' },
+      });
+    }
+
+    // 4. Broadcast to every socket in the room (including the sender so the
+    //    client can use the server-assigned id for deduplication).
+    io.to(roomCode).emit('message_received', message);
+
+    // 5. Acknowledge success with the persisted message DTO
+    callback({ success: true, data: message });
   });
 
   // ── sync_ping ────────────────────────────────────────────────────────────────

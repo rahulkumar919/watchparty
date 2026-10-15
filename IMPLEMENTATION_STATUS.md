@@ -1,6 +1,6 @@
 # YouTube Watch Party System — Implementation Status
 
-> Last updated: 2026-10-14 | Phase 1 Complete
+> Last updated: 2026-10-14 | Phases 1–8 Complete
 
 ---
 
@@ -9,24 +9,26 @@
 ```
 Phase 0  ████████████████████  COMPLETE
 Phase 1  ████████████████████  COMPLETE
-Phase 2  ░░░░░░░░░░░░░░░░░░░░  NEXT
-Phase 3  ░░░░░░░░░░░░░░░░░░░░  PENDING
-Phase 4  ░░░░░░░░░░░░░░░░░░░░  PENDING
-Phase 5  ░░░░░░░░░░░░░░░░░░░░  PENDING
-Phase 6  ░░░░░░░░░░░░░░░░░░░░  PENDING
-Phase 7  ░░░░░░░░░░░░░░░░░░░░  PENDING
-Phase 8  ░░░░░░░░░░░░░░░░░░░░  PENDING
-Phase 9  ░░░░░░░░░░░░░░░░░░░░  PENDING
+Phase 2  ████████████████████  COMPLETE
+Phase 3  ████████████████████  COMPLETE
+Phase 4  ████████████████████  COMPLETE
+Phase 5  ████████████████████  COMPLETE
+Phase 6  ████████████████████  COMPLETE
+Phase 7  ████████████████████  COMPLETE
+Phase 8  ████████████████████  COMPLETE
+Phase 9  ░░░░░░░░░░░░░░░░░░░░  PENDING (Render deployment)
 ```
 
 ---
 
-## Test Results
+## Build & Test Results
 
 ```
-Test Files  5 passed (5)
-     Tests  91 passed (91)
-  TypeScript  0 errors
+Server TypeScript  0 errors
+Web TypeScript     0 errors
+Next.js build      ✓ compiled (Turbopack, Cache Components enabled)
+Unit tests         91 passed (91) — 5 files
+Integration tests  Written, require live DB (excluded from default run)
 ```
 
 | File | Tests | Status |
@@ -39,99 +41,146 @@ Test Files  5 passed (5)
 
 ---
 
+## Database Status
+
+- **Neon free tier** provisioned with schema applied via `prisma db push`
+- Schema: all models (`User`, `Session`, `Room`, `RoomParticipant`, `PlaybackRequest`) with indexes
+- `DATABASE_URL` = pooler URL (runtime), `DIRECT_URL` = direct host (migrations)
+- Port 5432 blocked from local machine → server starts in dev mode with graceful DB warn
+- Will connect successfully from Render (unrestricted egress)
+
+---
+
+## Phase 8 — Completed Work
+
+### Bug Fixes
+- **`useSocket` reactivity**: Added reactive `socket` state (via `useState`) alongside the
+  `socketRef`, so components that depend on the socket instance re-render on connect/disconnect.
+  Previously only `socketRef.current` was returned — a stable ref that never triggers re-renders.
+
+### Next.js 16 Build Fix
+- **`instant = false`** added to `/room/[code]/layout.tsx` (Server Component) to opt the
+  route out of Cache Components prerendering. The room page uses `useParams()`, `useRouter()`,
+  and `sessionStorage` — all runtime-only APIs incompatible with static prerendering.
+  This is the correct Next.js 16 pattern (the `dynamic` segment config is incompatible with
+  `cacheComponents: true`).
+
+### Environment
+- `apps/web/.env.local` created with `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL`
+- `apps/server/.env.example` updated to document dual-URL pattern (pooler + direct)
+- Deleted `apps/web/src/app/room/[code]/page.tsx.tmp` placeholder
+
+---
+
+## Phase 2 — Completed Work
+
+### Database
+- `prisma/schema.prisma` updated with `directUrl = env("DIRECT_URL")` for Neon dual-URL pattern
+- `prisma generate` regenerated client
+- `dotenv` package installed in server
+
+### Server
+- `src/index.ts` startup DB check: non-fatal in dev mode, retries 3× before warning
+- `src/index.ts` startup DB check: fatal in production (exits after 5× retries)
+- `/health` endpoint returns `{ status, uptime, db, activeRooms }`
+
+---
+
+## Phase 3 — Completed Work (YouTube Player Component & Room UI)
+
+### Files
+```
+apps/web/src/app/room/[code]/page.tsx     # Full room page (600+ LOC)
+apps/web/src/hooks/useYouTubePlayer.ts   # IFrame API hook with loop-breaker
+apps/web/src/hooks/useRoomState.ts       # Room state reducer with stateVersion guard
+apps/web/src/hooks/useSocket.ts          # Reactive socket hook (connect/disconnect)
+apps/web/src/hooks/useDriftCorrection.ts # Two-zone snap, NTP-lite clock sync
+apps/web/src/app/page.tsx                # Home page (Create/Join room UI)
+apps/web/src/app/globals.css             # Full design system (tokens, components)
+apps/web/src/lib/api.ts                  # Typed REST client
+apps/web/src/lib/session.ts              # sessionStorage session persistence
+```
+
+### Architecture
+- **`useSocket`**: Connects with JWT in `auth.token`; exposes reactive `socket` state +
+  `socketRef` (for use in callbacks) + `status`
+- **`useRoomState`**: Reducer-based state; `stateVersion` guard rejects stale `playback_updated`
+- **`useYouTubePlayer`**: `isApplyingRemoteUpdate` flag prevents self-echo on programmatic calls
+- **`useDriftCorrection`**: 1.5s interval; ±1.5s snap threshold; 1s seek debounce; NTP-lite ping
+- **Room page**: Two-panel layout; HOST/MOD controls; PARTICIPANT request workflow;
+  manage-participant modal; approve/reject requests panel; toast notifications; autoplay banner
+
+---
+
 ## Phase 1 — Completed Work
 
-### Monorepo Structure
+### Server Architecture
 ```
-watch_party_system/
-├── package.json                    # npm workspaces root
-├── IMPLEMENTATION_PLAN.md
-├── IMPLEMENTATION_STATUS.md
-├── apps/
-│   ├── server/                     # Express + Socket.IO backend
-│   │   ├── prisma/schema.prisma    # DB schema (all models, indexes)
-│   │   ├── src/
-│   │   │   ├── config.ts           # Env config with fail-fast validation
-│   │   │   ├── app.ts              # Express app factory
-│   │   │   ├── index.ts            # Server entry point
-│   │   │   ├── db/prisma.ts        # Prisma singleton
-│   │   │   ├── state/
-│   │   │   │   └── RoomStateManager.ts  # In-memory state + anchor math
-│   │   │   ├── services/
-│   │   │   │   ├── sessionService.ts    # JWT issue/verify/revoke
-│   │   │   │   ├── roomService.ts       # Room create/join/load
-│   │   │   │   ├── playbackService.ts   # Two-tier playback mutations
-│   │   │   │   └── requestService.ts    # Atomic request approval
-│   │   │   ├── socket/
-│   │   │   │   ├── middleware.ts        # Auth middleware
-│   │   │   │   └── handlers.ts         # All Socket.IO event handlers
-│   │   │   ├── routes/rooms.ts          # REST API
-│   │   │   └── utils/
-│   │   │       ├── youtube.ts           # URL parser
-│   │   │       ├── rbac.ts             # Permission functions
-│   │   │       └── roomRecovery.ts     # Cold-start math (pure fn)
-│   │   └── vitest.config.ts
-│   └── web/                        # Next.js 14 App Router frontend
-│       └── (scaffolded by create-next-app)
-└── packages/
-    └── types/src/index.ts          # Shared types, Zod schemas, event maps
+apps/server/src/
+├── config.ts                  # Env config with fail-fast validation
+├── app.ts                     # Express factory (CORS, helmet, /health, routes)
+├── index.ts                   # Entry point, Socket.IO setup, graceful shutdown
+├── db/prisma.ts               # Prisma singleton
+├── state/RoomStateManager.ts  # In-memory authoritative state + anchor math
+├── services/
+│   ├── sessionService.ts      # JWT issue/verify/revoke (SHA-256 token hash)
+│   ├── roomService.ts         # create/join/loadRoomIntoMemory/buildSyncStatePayload
+│   ├── playbackService.ts     # Two-tier: memory-first + async checkpoint
+│   └── requestService.ts      # Atomic conditional updateMany
+├── socket/
+│   ├── middleware.ts          # JWT auth + isRevoked + isBanned check
+│   └── handlers.ts            # All Socket.IO events with Zod validation + RBAC
+├── routes/rooms.ts            # POST /api/rooms, POST /api/rooms/join, GET /api/rooms/:code
+└── utils/
+    ├── youtube.ts             # URL parser (18 formats)
+    ├── rbac.ts                # Permission matrix (pure functions)
+    └── roomRecovery.ts        # Cold-start anchor computation (pure, no Prisma)
 ```
-
-### Key Architecture Points Implemented
-- **`RoomStateManager`**: Singleton in-memory state with anchor math (`anchorPositionSeconds + elapsed`). Exported as class for test isolation.
-- **`stateVersion`**: Monotonically incrementing integer on every state mutation. Async DB checkpoints include a conditional `WHERE stateVersion <= checkpoint` to reject stale writes.
-- **Two-tier DB strategy**: `change_video` is DB-first (durability critical). `play/pause/seek` are memory-first with async checkpoint (latency critical).
-- **`computeRecoveryState`**: Pure function (no Prisma dep) for cold-start anchor recovery. Extracted to `utils/roomRecovery.ts` for clean unit testing.
-- **`validatePayload`**: Generic Zod validation helper returning `SocketResponse<any>` on error (assignable to any typed callback without per-callsite casting).
 
 ---
 
-## Phase 2 — Next Steps
+## Running the App
 
-### Prerequisites (User Action Required)
+### Development
 
-1. **Set up PostgreSQL database**:
-   ```bash
-   # Option A: Neon (recommended — free, cloud-hosted, instant)
-   # Visit https://neon.tech, create a project, copy the connection string
+```bash
+# Terminal 1 — Backend
+cd apps/server
+npm run dev        # tsx watch src/index.ts → http://localhost:4000
 
-   # Option B: Local Docker
-   docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=password -e POSTGRES_DB=watchparty_dev postgres:16
-   ```
+# Terminal 2 — Frontend  
+cd apps/web
+npm run dev        # next dev → http://localhost:3000
+```
 
-2. **Configure environment**:
-   ```bash
-   cp apps/server/.env.example apps/server/.env
-   # Edit DATABASE_URL and JWT_SECRET in apps/server/.env
-   ```
+### Tests
 
-3. **Generate JWT secret**:
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-   ```
+```bash
+# Unit tests (no DB required)
+npm run test --workspace=apps/server
 
-4. **Run migrations**:
-   ```bash
-   npm run db:migrate --workspace=apps/server
-   ```
+# Integration tests (require live DATABASE_URL)
+npm run test:integration --workspace=apps/server
+```
 
-5. **Start the dev server**:
-   ```bash
-   npm run dev:server
-   # Test health: curl http://localhost:4000/health
-   ```
+### Database
 
-### Phase 2 Deliverables
-- Integration tests for `POST /api/rooms`, `POST /api/rooms/join`
-- Socket.IO connection integration test (valid JWT → accepted, invalid → rejected)
-- Session revocation integration test (kicked user reconnect → rejected)
-- `/health` endpoint returning `db: "connected"`
+```bash
+# Push schema (uses DIRECT_URL, wakes Neon if suspended)
+npm run db:migrate --workspace=apps/server
+
+# Or push without migration history
+npx prisma db push --cwd apps/server
+```
 
 ---
 
-## Blocked / Pending User Decisions
+## Pending — Phase 9 (Deployment)
 
-| Decision | Status | Default |
-|---|---|---|
-| PostgreSQL provider for development | Needs user setup | Neon free tier |
-| Render account for deployment (Phase 9) | Pending | — |
+| Task | Status |
+|---|---|
+| Render backend service (Node.js) | Pending |
+| Render frontend service (Next.js) | Pending |
+| Render managed PostgreSQL | Pending (or Neon) |
+| Set production env vars | Pending |
+| README.md with live URL | Pending |

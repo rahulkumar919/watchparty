@@ -3,12 +3,14 @@
 // Docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── User ────────────────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ model User {
   roomParticipants RoomParticipant[]
   requestsMade     PlaybackRequest[] @relation("RequestMadeBy")
   requestsResolved PlaybackRequest[] @relation("RequestResolvedBy")
+  chatMessages     ChatMessage[]
 
   @@index([createdAt])
 }
@@ -88,6 +91,7 @@ model Room {
   sessions         Session[]
   participants     RoomParticipant[]
   playbackRequests PlaybackRequest[]
+  chatMessages     ChatMessage[]
 
   @@index([code])
   @@index([isClosed])
@@ -149,4 +153,24 @@ model PlaybackRequest {
   // Fast atomic update: find by id and check status in one query
   @@index([id, status])
   @@index([requesterId])
+}
+
+// ─── ChatMessage ──────────────────────────────────────────────────────────────
+// Persists every room chat message.
+// displayName is denormalized from User at write time so that message history
+// still shows the original name even if the user object changes.
+model ChatMessage {
+  id          String   @id @default(cuid())
+  roomId      String
+  userId      String
+  displayName String
+  body        String   @db.VarChar(1000)
+  createdAt   DateTime @default(now())
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Fast chronological retrieval of messages for a room
+  @@index([roomId, createdAt])
+  @@index([userId])
 }

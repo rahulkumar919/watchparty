@@ -1,5 +1,9 @@
 'use client';
 
+// Force dynamic rendering — this page uses useRouter, sessionStorage, and
+// Socket.IO which are only available in the browser, never during SSR/prerender.
+export const dynamic = 'force-dynamic';
+
 import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';

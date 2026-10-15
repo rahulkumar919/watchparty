@@ -25,10 +25,10 @@ export type ProtectedAction =
   | 'close_room';
 
 const PERMISSION_MAP: Record<ProtectedAction, Role[]> = {
-  play: ['HOST', 'MODERATOR', 'PARTICIPANT'],
-  pause: ['HOST', 'MODERATOR', 'PARTICIPANT'],
-  seek: ['HOST', 'MODERATOR', 'PARTICIPANT'],
-  change_video: ['HOST', 'MODERATOR', 'PARTICIPANT'],
+  play: ['HOST', 'MODERATOR'],
+  pause: ['HOST', 'MODERATOR'],
+  seek: ['HOST', 'MODERATOR'],
+  change_video: ['HOST', 'MODERATOR'],
   request_playback_action: ['HOST', 'MODERATOR', 'PARTICIPANT'],
   resolve_playback_request: ['HOST', 'MODERATOR'],
   assign_role: ['HOST'],
@@ -48,7 +48,7 @@ export function canPerformAction(role: Role, action: ProtectedAction): boolean {
  * (without needing to submit a request).
  */
 export function canControlPlayback(role: Role): boolean {
-  return role === 'HOST' || role === 'MODERATOR' || role === 'PARTICIPANT';
+  return role === 'HOST' || role === 'MODERATOR';
 }
 
 /**
@@ -85,7 +85,7 @@ export function validatePlaybackAction(
   role: Role,
   action: PlaybackAction,
 ): { allowed: boolean; requiresRequest: boolean } {
-  if (role === 'HOST' || role === 'MODERATOR' || role === 'PARTICIPANT') {
+  if (role === 'HOST' || role === 'MODERATOR') {
     return { allowed: true, requiresRequest: false };
   }
   // Participants must go through the request workflow

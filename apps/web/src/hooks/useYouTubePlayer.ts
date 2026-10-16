@@ -5,7 +5,7 @@
  *
  * Manages the YouTube IFrame Player API lifecycle:
  * - Dynamically loads the IFrame API script
- * - Initializes the player when ready
+ * - Initializes the player when ready (with polling fallback)
  * - Provides imperative controls (play, pause, seekTo)
  * - Bridges YouTube state-change events to callbacks
  * - Implements the loop-breaker pattern to prevent self-echo
@@ -49,6 +49,49 @@ export interface PlayerCallbacks {
 
 export type PlayerState = 'unstarted' | 'ended' | 'playing' | 'paused' | 'buffering' | 'cued';
 
+// ── Module-level: load the YT API script once ──────────────────────────────
+let ytApiLoading = false;
+const ytApiReadyCallbacks: (() => void)[] = [];
+
+function ensureYTApiLoaded(onReady: () => void) {
+  // Already loaded
+  if (typeof window !== 'undefined' && window.YT?.Player) {
+    onReady();
+    return;
+  }
+
+  ytApiReadyCallbacks.push(onReady);
+
+  if (!ytApiLoading) {
+    ytApiLoading = true;
+
+    // Set the global callback BEFORE loading the script
+    const existingCallback = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      existingCallback?.();
+      console.log('[YouTubePlayer] YT API ready, notifying', ytApiReadyCallbacks.length, 'listeners');
+      // Drain all pending callbacks
+      while (ytApiReadyCallbacks.length > 0) {
+        const cb = ytApiReadyCallbacks.shift();
+        cb?.();
+      }
+    };
+
+    // Load the script
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      script.onerror = () => {
+        console.error('[YouTubePlayer] Failed to load YouTube IFrame API');
+        ytApiLoading = false;
+      };
+      document.body.appendChild(script);
+    }
+  }
+}
+
 export function useYouTubePlayer(
   containerId: string,
   initialVideoId: string,
@@ -60,22 +103,45 @@ export function useYouTubePlayer(
   const isReadyRef = useRef(false);
   const [playerState, setPlayerState] = useState<PlayerState>('unstarted');
   const [isMuted, setIsMuted] = useState(true);
+  const [isReady, setIsReady] = useState(false);
 
-  // Track the initial video ID that was used to create the player
-  const initialVideoIdRef = useRef<string | null>(null);
+  // Use refs for callbacks so the player event handlers always call the latest versions
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
+
+  // Track the video ID used during player construction to avoid double-loading
+  const constructedVideoIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Always create the player, even if initialVideoId is empty
-    function initPlayer() {
-      if (playerRef.current) {
-        // Player already exists, don't recreate
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryCount = 0;
+    const MAX_RETRIES = 50; // 50 x 100ms = 5s max wait
+
+    function createPlayer() {
+      if (cancelled || playerRef.current) return;
+
+      const container = document.getElementById(containerId);
+      if (!container) {
+        // Container not in DOM yet — retry with polling
+        retryCount++;
+        if (retryCount <= MAX_RETRIES) {
+          console.log('[YouTubePlayer] Container not ready, retrying...', retryCount);
+          retryTimer = setTimeout(createPlayer, 100);
+        } else {
+          console.error('[YouTubePlayer] Container', containerId, 'not found after', MAX_RETRIES, 'retries');
+        }
         return;
       }
 
       try {
-        initialVideoIdRef.current = initialVideoId || null;
+        console.log('[YouTubePlayer] Creating player in container:', containerId, 'videoId:', initialVideoId || '(none)');
+        constructedVideoIdRef.current = initialVideoId || null;
+
         playerRef.current = new window.YT.Player(containerId, {
           ...(initialVideoId ? { videoId: initialVideoId } : {}),
+          height: '100%',
+          width: '100%',
           playerVars: {
             autoplay: 0,
             controls: 0,       // Hide native controls — we render our own
@@ -91,12 +157,15 @@ export function useYouTubePlayer(
           },
           events: {
             onReady: () => {
+              if (cancelled) return;
+              console.log('[YouTubePlayer] Player ready!');
               isReadyRef.current = true;
-              callbacks.onReady();
+              setIsReady(true);
+              callbacksRef.current.onReady();
             },
             onStateChange: (event) => {
+              if (cancelled) return;
               // Loop-breaker: suppress events triggered by our own programmatic calls
-              // Use a timeout-based approach to handle async YouTube API behavior
               if (isApplyingRemoteUpdate.current) {
                 console.log('[YouTubePlayer] Suppressing state change during remote update:', event.data);
                 return;
@@ -113,52 +182,38 @@ export function useYouTubePlayer(
               const newState = stateMap[event.data] ?? 'unstarted';
               setPlayerState(newState);
 
-              console.log('[YouTubePlayer] State changed to:', newState, '- notifying callbacks');
+              console.log('[YouTubePlayer] State changed to:', newState);
 
               if (event.data === YT.PlayerState.PLAYING) {
                 const pos = playerRef.current?.getCurrentTime() ?? 0;
-                callbacks.onPlay(pos);
+                callbacksRef.current.onPlay(pos);
               } else if (event.data === YT.PlayerState.PAUSED) {
                 const pos = playerRef.current?.getCurrentTime() ?? 0;
-                callbacks.onPause(pos);
+                callbacksRef.current.onPause(pos);
               }
             },
             onError: (event) => {
+              if (cancelled) return;
               console.error('[YouTubePlayer] Player error:', event.data);
-              callbacks.onError(event.data);
+              callbacksRef.current.onError(event.data);
             },
           },
         });
+
+        console.log('[YouTubePlayer] Player instance created successfully');
       } catch (err) {
         console.error('[YouTubePlayer] Failed to initialize player:', err);
       }
     }
 
-    // Load API script if not already loaded
-    if (window.YT?.Player) {
-      initPlayer();
-    } else {
-      // Check if script is already loading
-      const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
-      if (!existingScript) {
-        const script = document.createElement('script');
-        script.src = 'https://www.youtube.com/iframe_api';
-        script.async = true;
-        script.onerror = () => {
-          console.error('[YouTubePlayer] Failed to load YouTube IFrame API');
-        };
-        document.body.appendChild(script);
-      }
-
-      const existingCallback = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        existingCallback?.();
-        initPlayer();
-      };
-    }
+    // Load the YT API and create the player when ready
+    ensureYTApiLoaded(() => {
+      if (!cancelled) createPlayer();
+    });
 
     return () => {
-      // Only destroy on unmount
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
       if (remoteUpdateTimeout.current) {
         clearTimeout(remoteUpdateTimeout.current);
       }
@@ -170,6 +225,7 @@ export function useYouTubePlayer(
         }
         playerRef.current = null;
         isReadyRef.current = false;
+        setIsReady(false);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,19 +247,19 @@ export function useYouTubePlayer(
     if (!initialVideoId || !playerRef.current || !isReadyRef.current) return;
 
     // Skip if this video was already loaded during player construction
-    if (initialVideoId === initialVideoIdRef.current) {
-      initialVideoIdRef.current = null; // Clear so future changes to same ID still work
+    if (initialVideoId === constructedVideoIdRef.current) {
+      constructedVideoIdRef.current = null; // Clear so future changes to same ID still work
       return;
     }
 
     try {
-      console.log('[YouTubePlayer] Loading video ID:', initialVideoId);
+      console.log('[YouTubePlayer] Cueing video ID:', initialVideoId);
       setRemoteUpdateFlag(1000);
       playerRef.current.cueVideoById(initialVideoId);
     } catch (err) {
       console.error('[YouTubePlayer] Error loading video:', err);
     }
-  }, [initialVideoId, setRemoteUpdateFlag]);
+  }, [initialVideoId, isReady, setRemoteUpdateFlag]);
 
   const controls: PlayerControls = {
     play: useCallback((positionSeconds?: number) => {
@@ -213,9 +269,7 @@ export function useYouTubePlayer(
       if (positionSeconds !== undefined) {
         playerRef.current.seekTo(positionSeconds, true);
       }
-      playerRef.current.unMute();
       playerRef.current.playVideo();
-      setIsMuted(false);
     }, [setRemoteUpdateFlag]),
 
     pause: useCallback(() => {
@@ -239,7 +293,7 @@ export function useYouTubePlayer(
     loadVideo: useCallback((videoId: string) => {
       if (!playerRef.current || !isReadyRef.current) return;
       console.log('[YouTubePlayer] LOAD VIDEO command:', videoId);
-      setRemoteUpdateFlag(1000); // Longer timeout for video load
+      setRemoteUpdateFlag(1000);
       playerRef.current.cueVideoById(videoId);
     }, [setRemoteUpdateFlag]),
 
@@ -256,5 +310,5 @@ export function useYouTubePlayer(
     isMuted: useCallback(() => isMuted, [isMuted]),
   };
 
-  return { controls, playerState, isReady: isReadyRef.current, isMuted };
+  return { controls, playerState, isReady, isMuted };
 }

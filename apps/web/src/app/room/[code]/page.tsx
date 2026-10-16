@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 export const dynamic = 'force-dynamic';
 
@@ -460,40 +460,41 @@ export default function RoomPage() {
 
           {/* Video area */}
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#000' }}>
-            {videoId ? (
-              <div style={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}>
-                <div id="yt-player" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
-                {playerState === 'buffering' && (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(0,0,0,0.7)', zIndex: 10, pointerEvents: 'none' }}>
-                    <div className="spinner" style={{ width: 36, height: 36 }} />
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Buffering…</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 }}>
-                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.03em', textAlign: 'center' }}>Nothing playing yet</div>
-                <p style={{ fontSize: 14, color: 'var(--color-text-3)', textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
-                  Paste a YouTube link to start. Everyone in the room will see it at the same moment.
-                </p>
-                {canControl(myRole) && (
-                  <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: 12, overflow: 'hidden', width: '100%', maxWidth: 480 }}>
-                    <svg style={{ marginLeft: 14, flexShrink: 0 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-3)" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" /></svg>
-                    <input id="input-video-url-empty" className="input" placeholder="YouTube URL or video ID…"
-                      value={videoInput} onChange={e => setVideoInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleChangeVideo()}
-                      style={{ flex: 1, background: 'transparent', border: 'none', fontSize: 14, padding: '12px 12px' }} />
-                    <button id="btn-set-video-empty" onClick={handleChangeVideo}
-                      style={{ margin: 5, padding: '8px 18px', background: 'linear-gradient(135deg,#9333ea,#6d28d9)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                      Play
-                    </button>
-                  </div>
-                )}
-                {!canControl(myRole) && (
-                  <p style={{ fontSize: 13, color: 'var(--color-text-3)' }}>Waiting for the host to add a video…</p>
-                )}
-              </div>
-            )}
+            <div style={{ position: 'relative', width: '100%', flex: 1, minHeight: 0 }}>
+              {/* Always render the player container so YouTube IFrame API can find it */}
+              <div id="yt-player" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+              {playerState === 'buffering' && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, background: 'rgba(0,0,0,0.7)', zIndex: 10, pointerEvents: 'none' }}>
+                  <div className="spinner" style={{ width: 36, height: 36 }} />
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Buffering…</span>
+                </div>
+              )}
+              {/* Overlay: shown when no video is loaded */}
+              {!videoId && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40, background: '#000', zIndex: 5 }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--color-text)', letterSpacing: '-0.03em', textAlign: 'center' }}>Nothing playing yet</div>
+                  <p style={{ fontSize: 14, color: 'var(--color-text-3)', textAlign: 'center', maxWidth: 360, lineHeight: 1.6 }}>
+                    Paste a YouTube link to start. Everyone in the room will see it at the same moment.
+                  </p>
+                  {canControl(myRole) && (
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: 12, overflow: 'hidden', width: '100%', maxWidth: 480 }}>
+                      <svg style={{ marginLeft: 14, flexShrink: 0 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-3)" strokeWidth="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" /></svg>
+                      <input id="input-video-url-empty" className="input" placeholder="YouTube URL or video ID…"
+                        value={videoInput} onChange={e => setVideoInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleChangeVideo()}
+                        style={{ flex: 1, background: 'transparent', border: 'none', fontSize: 14, padding: '12px 12px' }} />
+                      <button id="btn-set-video-empty" onClick={handleChangeVideo}
+                        style={{ margin: 5, padding: '8px 18px', background: 'linear-gradient(135deg,#9333ea,#6d28d9)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                        Play
+                      </button>
+                    </div>
+                  )}
+                  {!canControl(myRole) && (
+                    <p style={{ fontSize: 13, color: 'var(--color-text-3)' }}>Waiting for the host to add a video…</p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── BOTTOM CONTROLS BAR ── */}

@@ -53,7 +53,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       }),
       on: vi.fn(),
       off: vi.fn(),
-    } as Partial<Socket>;
+    } as unknown as Partial<Socket>;
 
     mockControls = {
       play: vi.fn(),
@@ -519,6 +519,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
             videoId: 'test-threshold',
             anchorPositionSeconds: 10.0,
             anchorTimestampMs: Date.now(),
+            serverTimeMs: Date.now(),
             stateVersion: 1,
           };
 
@@ -572,6 +573,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
             videoId: 'test-threshold',
             anchorPositionSeconds: 10.0,
             anchorTimestampMs: Date.now(),
+            serverTimeMs: Date.now(),
             stateVersion: 1,
           };
 

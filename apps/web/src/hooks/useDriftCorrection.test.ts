@@ -51,7 +51,7 @@ describe('Bug Condition Exploration: Excessive Seeks After Play Sync', () => {
       }),
       on: vi.fn(),
       off: vi.fn(),
-    } as Partial<Socket>;
+    } as unknown as Partial<Socket>;
 
     // Mock controls that track seek calls
     mockControls = {

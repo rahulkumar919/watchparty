@@ -22,6 +22,7 @@ import { PlayerControls } from './useYouTubePlayer';
 const SYNC_INTERVAL_MS = 1500;
 const SNAP_THRESHOLD_S = 1.5;
 const SEEK_DEBOUNCE_MS = 1000;
+const REMOTE_UPDATE_GRACE_MS = 2000;
 
 export function useDriftCorrection(
   socket: Socket | null,
@@ -30,6 +31,7 @@ export function useDriftCorrection(
 ) {
   const clockOffsetRef = useRef(0);
   const lastSeekAtRef = useRef(0);
+  const lastRemoteUpdateRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // NTP-lite clock sync — runs once on mount and every 30s
@@ -58,6 +60,10 @@ export function useDriftCorrection(
       if (playback.status !== 'PLAYING') return;
 
       const nowClient = Date.now();
+
+      // Grace period: skip drift correction shortly after remote update
+      if (nowClient - lastRemoteUpdateRef.current < REMOTE_UPDATE_GRACE_MS) return;
+
       const adjustedNow = nowClient + clockOffsetRef.current;
       const targetPosition =
         playback.anchorPositionSeconds + (adjustedNow - playback.anchorTimestampMs) / 1000;
@@ -65,7 +71,7 @@ export function useDriftCorrection(
       const localPosition = controls.getCurrentTime();
       const delta = Math.abs(localPosition - targetPosition);
 
-      const cooldownActive = Date.now() - lastSeekAtRef.current < SEEK_DEBOUNCE_MS;
+      const cooldownActive = nowClient - lastSeekAtRef.current < SEEK_DEBOUNCE_MS;
       if (cooldownActive) return;
 
       if (delta > SNAP_THRESHOLD_S) {
@@ -80,4 +86,10 @@ export function useDriftCorrection(
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [playback, controls]);
+
+  return {
+    notifyRemoteUpdate: useCallback(() => {
+      lastRemoteUpdateRef.current = Date.now();
+    }, [])
+  };
 }

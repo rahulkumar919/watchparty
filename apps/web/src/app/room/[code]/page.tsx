@@ -139,17 +139,31 @@ export default function RoomPage() {
   });
 
   const lastVer = useRef(-1);
+  const driftControl = useDriftCorrection(socket, state.playback, controls);
+
   useEffect(() => {
     if (!state.playback) return;
     if (state.playback.stateVersion <= lastVer.current) return;
     lastVer.current = state.playback.stateVersion;
     const t = computeCurrentPosition();
-    if (state.playback.status === 'PLAYING') controls.play(t);
-    else { controls.pause(); controls.seekTo(state.playback.anchorPositionSeconds); }
-  }, [state.playback, controls, computeCurrentPosition]);
+
+    if (state.playback.status === 'PLAYING') {
+      // Check if position is already close enough to avoid redundant seek
+      const currentPos = controls.getCurrentTime();
+      if (Math.abs(currentPos - t) < 0.5) {
+        controls.play(); // Just play, no seek
+      } else {
+        controls.play(t);
+      }
+      driftControl.notifyRemoteUpdate();
+    } else {
+      controls.pause();
+      controls.seekTo(state.playback.anchorPositionSeconds);
+      driftControl.notifyRemoteUpdate();
+    }
+  }, [state.playback, controls, computeCurrentPosition, driftControl]);
 
   const [showBanner, setShowBanner] = useState(true);
-  useDriftCorrection(socket, state.playback, controls);
 
   const [initialChatMessages, setInitialChatMessages] = useState<ChatMessageDTO[]>([]);
   const chatHistorySeededRef = useRef(false);

@@ -1,0 +1,93 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Excessive Seeks After Play Sync
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists (multiple rapid seeks after initial play sync)
+  - **Scoped PBT Approach**: For deterministic bugs, scope the property to the concrete failing case(s) to ensure reproducibility
+  - Test that after receiving a `playback_updated` event with status=PLAYING and applying `controls.play(t)`, the system produces at most 1 seek operation within the first 3 seconds
+  - Assert that playback speed remains at 1.0x (normal speed) without rapid seeking or fast-forward behavior
+  - Verify that drift correction does NOT trigger redundant seeks within 2 seconds of the initial sync
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves excessive seeks occur)
+  - Document counterexamples found:
+    - Count of seek operations within 3s window after play sync (expect >1 on unfixed code)
+    - Timing of drift correction interference (expect within 500ms-2000ms of initial sync)
+    - Observable playback speed anomalies
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 2.1, 2.2, 2.3_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Legitimate Drift Correction and Existing Behaviors
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-buggy inputs (scenarios where the timing race does NOT occur):
+    - Legitimate drift correction: Pause video for 3+ seconds while server continues playing, resume, observe drift correction seeks to catch up
+    - Join synchronization: New participant joins room with playing video, observes sync to current position
+    - Manual control sync: Host seeks to new position, all participants sync to that position
+    - No-drift scenario: Video plays normally for 60s with no network issues, drift correction remains quiet
+  - Write property-based tests capturing observed behavior patterns:
+    - **Test 1**: For any scenario where legitimate drift >1.5s exists AND >2s has elapsed since last remote update, drift correction SHALL seek to target position
+    - **Test 2**: For any participant joining a room with playing video, sync SHALL position them at computed position based on anchor
+    - **Test 3**: For any manual playback control (play/pause/seek), sync SHALL propagate to all participants
+    - **Test 4**: For any playback session without drift, drift correction SHALL not intervene after initial sync settles
+    - **Test 5**: Grace period SHALL NOT block legitimate drift correction after expiring (>2s after remote update, introduce drift, verify correction)
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+- [ ] 3. Fix for video playback speed bug (excessive seeks after play sync)
+
+  - [ ] 3.1 Implement the fix
+    - **File**: `c:\Desktop\watch_party_system\apps\web\src\hooks\useDriftCorrection.ts`
+    - Add grace period tracking:
+      - Introduce `lastRemoteUpdateRef = useRef(0)` to track timestamp of most recent remote playback update
+      - Define constant `REMOTE_UPDATE_GRACE_MS = 2000` (2 seconds grace period)
+    - Extend cooldown logic in drift correction interval:
+      - Add condition: `if (Date.now() - lastRemoteUpdateRef.current < REMOTE_UPDATE_GRACE_MS) return;`
+      - This prevents drift correction from running within 2s of a remote update
+    - Expose grace period setter:
+      - Return object from hook: `{ notifyRemoteUpdate: () => { lastRemoteUpdateRef.current = Date.now(); } }`
+    - **File**: `c:\Desktop\watch_party_system\apps\web\src\app\room\[code]\page.tsx`
+    - Modify playback synchronization effect (line 148):
+      - Destructure returned object: `const driftControl = useDriftCorrection(...)`
+      - After calling `controls.play(t)` or `controls.seekTo()`, call `driftControl.notifyRemoteUpdate()`
+    - Add position tolerance check (optimization):
+      - Before calling `controls.play(t)`, check if current position is already close: `const currentPos = controls.getCurrentTime(); if (Math.abs(currentPos - t) < 0.5) { controls.play(); /* no seek */ return; }`
+      - This prevents redundant seeks when position delta < 0.5s
+    - _Bug_Condition: isBugCondition(input) where input.status == 'PLAYING' AND controls.play(t) is called AND within 1.5s, useDriftCorrection also calls controls.seekTo() AND these overlapping seeks cause apparent fast-forward playback_
+    - _Expected_Behavior: For any playback update where status is PLAYING and initial sync occurs, video SHALL play at normal 1x speed without rapid seeking within first 3s after sync (seekCount <= 1, playbackSpeed == 1.0)_
+    - _Preservation: (1) Drift correction continues for legitimate drift (>1.5s) when no recent update (<2s), (2) Join sync continues to work, (3) Manual controls continue to sync, (4) Loop-breaker pattern continues to prevent self-echo_
+    - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4_
+
+  - [ ] 3.2 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Normal Speed Playback After Sync
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior (at most 1 seek, 1.0x playback speed)
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed - no excessive seeks)
+    - Verify:
+      - Seek count within 3s window is <= 1
+      - Playback speed is 1.0x
+      - No drift correction interference within 2s grace period
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [ ] 3.3 Verify preservation tests still pass
+    - **Property 2: Preservation** - Legitimate Drift Correction and Existing Behaviors
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run all preservation property tests from step 2:
+      - Legitimate drift correction test
+      - Join synchronization test
+      - Manual control sync test
+      - No-drift scenario test
+      - Grace period doesn't block legitimate drift test
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all preservation behaviors remain unchanged after fix
+    - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.

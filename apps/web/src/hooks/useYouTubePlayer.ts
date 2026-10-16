@@ -61,9 +61,11 @@ export function useYouTubePlayer(
   const [playerState, setPlayerState] = useState<PlayerState>('unstarted');
   const [isMuted, setIsMuted] = useState(true);
 
-  useEffect(() => {
-    if (!initialVideoId) return;
+  // Track the initial video ID that was used to create the player
+  const initialVideoIdRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    // Always create the player, even if initialVideoId is empty
     function initPlayer() {
       if (playerRef.current) {
         // Player already exists, don't recreate
@@ -71,8 +73,9 @@ export function useYouTubePlayer(
       }
 
       try {
+        initialVideoIdRef.current = initialVideoId || null;
         playerRef.current = new window.YT.Player(containerId, {
-          videoId: initialVideoId,
+          ...(initialVideoId ? { videoId: initialVideoId } : {}),
           playerVars: {
             autoplay: 0,
             controls: 0,       // Hide native controls — we render our own
@@ -187,11 +190,16 @@ export function useYouTubePlayer(
   useEffect(() => {
     if (!initialVideoId || !playerRef.current || !isReadyRef.current) return;
 
+    // Skip if this video was already loaded during player construction
+    if (initialVideoId === initialVideoIdRef.current) {
+      initialVideoIdRef.current = null; // Clear so future changes to same ID still work
+      return;
+    }
+
     try {
       console.log('[YouTubePlayer] Loading video ID:', initialVideoId);
       setRemoteUpdateFlag(1000);
-      playerRef.current.loadVideoById(initialVideoId);
-      playerRef.current.pauseVideo();
+      playerRef.current.cueVideoById(initialVideoId);
     } catch (err) {
       console.error('[YouTubePlayer] Error loading video:', err);
     }
@@ -232,8 +240,7 @@ export function useYouTubePlayer(
       if (!playerRef.current || !isReadyRef.current) return;
       console.log('[YouTubePlayer] LOAD VIDEO command:', videoId);
       setRemoteUpdateFlag(1000); // Longer timeout for video load
-      playerRef.current.loadVideoById(videoId);
-      playerRef.current.pauseVideo();
+      playerRef.current.cueVideoById(videoId);
     }, [setRemoteUpdateFlag]),
 
     mute: useCallback(() => {

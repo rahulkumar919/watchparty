@@ -131,11 +131,40 @@ export default function RoomPage() {
   const myRole = state.currentUser?.role;
 
   const { controls, isMuted, playerState } = useYouTubePlayer('yt-player', videoId, {
-    onPlay: useCallback((pos: number) => { if (!socket || !canControl(myRole)) return; socket.emit('play', { positionSeconds: pos }); }, [socket, myRole]),
-    onPause: useCallback((pos: number) => { if (!socket || !canControl(myRole)) return; socket.emit('pause', { positionSeconds: pos }); }, [socket, myRole]),
-    onSeek: useCallback((pos: number) => { if (!socket || !canControl(myRole)) return; socket.emit('seek', { targetPositionSeconds: pos }); }, [socket, myRole]),
-    onReady: useCallback(() => { }, []),
-    onError: useCallback((code: number) => addToast(`Player error (${code})`, 'error'), [addToast]),
+    onPlay: useCallback((pos: number) => {
+      console.log('[RoomPage] onPlay callback fired, role:', myRole, 'pos:', pos);
+      if (!socket || !canControl(myRole)) {
+        console.log('[RoomPage] Ignoring play - no permission');
+        return;
+      }
+      console.log('[RoomPage] Emitting play event to server');
+      socket.emit('play', { positionSeconds: pos });
+    }, [socket, myRole]),
+    onPause: useCallback((pos: number) => {
+      console.log('[RoomPage] onPause callback fired, role:', myRole, 'pos:', pos);
+      if (!socket || !canControl(myRole)) {
+        console.log('[RoomPage] Ignoring pause - no permission');
+        return;
+      }
+      console.log('[RoomPage] Emitting pause event to server');
+      socket.emit('pause', { positionSeconds: pos });
+    }, [socket, myRole]),
+    onSeek: useCallback((pos: number) => {
+      console.log('[RoomPage] onSeek callback fired, role:', myRole, 'pos:', pos);
+      if (!socket || !canControl(myRole)) {
+        console.log('[RoomPage] Ignoring seek - no permission');
+        return;
+      }
+      console.log('[RoomPage] Emitting seek event to server');
+      socket.emit('seek', { targetPositionSeconds: pos });
+    }, [socket, myRole]),
+    onReady: useCallback(() => {
+      console.log('[RoomPage] YouTube player ready');
+    }, []),
+    onError: useCallback((code: number) => {
+      console.error('[RoomPage] YouTube player error:', code);
+      addToast(`Player error (${code})`, 'error');
+    }, [addToast]),
   });
 
   const lastVer = useRef(-1);
@@ -144,12 +173,15 @@ export default function RoomPage() {
   useEffect(() => {
     if (!state.playback) return;
     if (state.playback.stateVersion <= lastVer.current) return;
+
+    console.log('[RoomPage] Playback state updated, version:', state.playback.stateVersion, 'status:', state.playback.status);
     lastVer.current = state.playback.stateVersion;
     const t = computeCurrentPosition();
 
     if (state.playback.status === 'PLAYING') {
       // Check if position is already close enough to avoid redundant seek
       const currentPos = controls.getCurrentTime();
+      console.log('[RoomPage] Applying PLAY state - target:', t, 'current:', currentPos);
       if (Math.abs(currentPos - t) < 0.5) {
         controls.play(); // Just play, no seek
       } else {
@@ -157,6 +189,7 @@ export default function RoomPage() {
       }
       driftControl.notifyRemoteUpdate();
     } else {
+      console.log('[RoomPage] Applying PAUSE state - position:', state.playback.anchorPositionSeconds);
       controls.pause();
       controls.seekTo(state.playback.anchorPositionSeconds);
       driftControl.notifyRemoteUpdate();

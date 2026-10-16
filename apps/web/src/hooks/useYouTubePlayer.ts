@@ -56,6 +56,7 @@ export function useYouTubePlayer(
 ) {
   const playerRef = useRef<YT.Player | null>(null);
   const isApplyingRemoteUpdate = useRef(false);
+  const remoteUpdateTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isReadyRef = useRef(false);
   const [playerState, setPlayerState] = useState<PlayerState>('unstarted');
   const [isMuted, setIsMuted] = useState(true);
@@ -92,8 +93,9 @@ export function useYouTubePlayer(
             },
             onStateChange: (event) => {
               // Loop-breaker: suppress events triggered by our own programmatic calls
+              // Use a timeout-based approach to handle async YouTube API behavior
               if (isApplyingRemoteUpdate.current) {
-                isApplyingRemoteUpdate.current = false;
+                console.log('[YouTubePlayer] Suppressing state change during remote update:', event.data);
                 return;
               }
 
@@ -107,6 +109,8 @@ export function useYouTubePlayer(
               };
               const newState = stateMap[event.data] ?? 'unstarted';
               setPlayerState(newState);
+
+              console.log('[YouTubePlayer] State changed to:', newState, '- notifying callbacks');
 
               if (event.data === YT.PlayerState.PLAYING) {
                 const pos = playerRef.current?.getCurrentTime() ?? 0;
@@ -152,6 +156,9 @@ export function useYouTubePlayer(
 
     return () => {
       // Only destroy on unmount
+      if (remoteUpdateTimeout.current) {
+        clearTimeout(remoteUpdateTimeout.current);
+      }
       if (playerRef.current) {
         try {
           playerRef.current.destroy();
@@ -170,39 +177,52 @@ export function useYouTubePlayer(
     if (!initialVideoId || !playerRef.current || !isReadyRef.current) return;
 
     try {
-      isApplyingRemoteUpdate.current = true;
+      console.log('[YouTubePlayer] Loading video ID:', initialVideoId);
+      setRemoteUpdateFlag(1000);
       playerRef.current.loadVideoById(initialVideoId);
       playerRef.current.pauseVideo();
     } catch (err) {
       console.error('[YouTubePlayer] Error loading video:', err);
     }
-  }, [initialVideoId]);
+  }, [initialVideoId, setRemoteUpdateFlag]);
 
   // ── Imperative Controls ───────────────────────────────────────────────────────
+
+  const setRemoteUpdateFlag = useCallback((durationMs: number = 500) => {
+    isApplyingRemoteUpdate.current = true;
+    if (remoteUpdateTimeout.current) clearTimeout(remoteUpdateTimeout.current);
+    remoteUpdateTimeout.current = setTimeout(() => {
+      isApplyingRemoteUpdate.current = false;
+      console.log('[YouTubePlayer] Remote update flag cleared');
+    }, durationMs);
+  }, []);
 
   const controls: PlayerControls = {
     play: useCallback((positionSeconds?: number) => {
       if (!playerRef.current || !isReadyRef.current) return;
-      isApplyingRemoteUpdate.current = true;
+      console.log('[YouTubePlayer] PLAY command:', positionSeconds);
+      setRemoteUpdateFlag();
       if (positionSeconds !== undefined) {
         playerRef.current.seekTo(positionSeconds, true);
       }
       playerRef.current.unMute();
       playerRef.current.playVideo();
       setIsMuted(false);
-    }, []),
+    }, [setRemoteUpdateFlag]),
 
     pause: useCallback(() => {
       if (!playerRef.current || !isReadyRef.current) return;
-      isApplyingRemoteUpdate.current = true;
+      console.log('[YouTubePlayer] PAUSE command');
+      setRemoteUpdateFlag();
       playerRef.current.pauseVideo();
-    }, []),
+    }, [setRemoteUpdateFlag]),
 
     seekTo: useCallback((positionSeconds: number) => {
       if (!playerRef.current || !isReadyRef.current) return;
-      isApplyingRemoteUpdate.current = true;
+      console.log('[YouTubePlayer] SEEK command to:', positionSeconds);
+      setRemoteUpdateFlag();
       playerRef.current.seekTo(positionSeconds, true);
-    }, []),
+    }, [setRemoteUpdateFlag]),
 
     getCurrentTime: useCallback(() => {
       return playerRef.current?.getCurrentTime() ?? 0;
@@ -210,10 +230,11 @@ export function useYouTubePlayer(
 
     loadVideo: useCallback((videoId: string) => {
       if (!playerRef.current || !isReadyRef.current) return;
-      isApplyingRemoteUpdate.current = true;
+      console.log('[YouTubePlayer] LOAD VIDEO command:', videoId);
+      setRemoteUpdateFlag(1000); // Longer timeout for video load
       playerRef.current.loadVideoById(videoId);
       playerRef.current.pauseVideo();
-    }, []),
+    }, [setRemoteUpdateFlag]),
 
     mute: useCallback(() => {
       playerRef.current?.mute();

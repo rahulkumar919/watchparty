@@ -172,6 +172,17 @@ export function useYouTubePlayer(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerId]); // Only init once per container
 
+  // ── Imperative Controls ───────────────────────────────────────────────────────
+
+  const setRemoteUpdateFlag = useCallback((durationMs: number = 500) => {
+    isApplyingRemoteUpdate.current = true;
+    if (remoteUpdateTimeout.current) clearTimeout(remoteUpdateTimeout.current);
+    remoteUpdateTimeout.current = setTimeout(() => {
+      isApplyingRemoteUpdate.current = false;
+      console.log('[YouTubePlayer] Remote update flag cleared');
+    }, durationMs);
+  }, []);
+
   // Handle video ID changes separately without destroying player
   useEffect(() => {
     if (!initialVideoId || !playerRef.current || !isReadyRef.current) return;
@@ -185,17 +196,6 @@ export function useYouTubePlayer(
       console.error('[YouTubePlayer] Error loading video:', err);
     }
   }, [initialVideoId, setRemoteUpdateFlag]);
-
-  // ── Imperative Controls ───────────────────────────────────────────────────────
-
-  const setRemoteUpdateFlag = useCallback((durationMs: number = 500) => {
-    isApplyingRemoteUpdate.current = true;
-    if (remoteUpdateTimeout.current) clearTimeout(remoteUpdateTimeout.current);
-    remoteUpdateTimeout.current = setTimeout(() => {
-      isApplyingRemoteUpdate.current = false;
-      console.log('[YouTubePlayer] Remote update flag cleared');
-    }, durationMs);
-  }, []);
 
   const controls: PlayerControls = {
     play: useCallback((positionSeconds?: number) => {

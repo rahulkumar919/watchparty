@@ -18,6 +18,7 @@ describe('RoomStateManager', () => {
       status: 'PAUSED' as const,
       anchorPositionSeconds: 0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 0,
     },
     participants: [],

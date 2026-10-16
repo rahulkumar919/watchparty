@@ -93,6 +93,7 @@ describe('Bug Condition Exploration: Excessive Seeks After Play Sync', () => {
       videoId: 'test-video-123',
       anchorPositionSeconds: 10.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -199,6 +200,7 @@ describe('Bug Condition Exploration: Excessive Seeks After Play Sync', () => {
       videoId: 'test-video-456',
       anchorPositionSeconds: 20.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -283,6 +285,7 @@ describe('Bug Condition Exploration: Excessive Seeks After Play Sync', () => {
       videoId: 'test-video-789',
       anchorPositionSeconds: 30.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -315,6 +318,7 @@ describe('Bug Condition Exploration: Excessive Seeks After Play Sync', () => {
         ...playback,
         anchorPositionSeconds: 30.5,
         anchorTimestampMs: Date.now(),
+        serverTimeMs: Date.now(),
         stateVersion: 2,
       };
       rerender({ pb: playback });
@@ -329,6 +333,7 @@ describe('Bug Condition Exploration: Excessive Seeks After Play Sync', () => {
         ...playback,
         anchorPositionSeconds: 31.0,
         anchorTimestampMs: Date.now(),
+        serverTimeMs: Date.now(),
         stateVersion: 3,
       };
       rerender({ pb: playback });

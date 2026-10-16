@@ -93,6 +93,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       videoId: 'test-video-drift',
       anchorPositionSeconds: 10.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -167,6 +168,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
             videoId: 'test-video-pbt',
             anchorPositionSeconds: anchorPos,
             anchorTimestampMs: Date.now(),
+            serverTimeMs: Date.now(),
             stateVersion: 1,
           };
 
@@ -228,6 +230,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       videoId: 'test-video-join',
       anchorPositionSeconds: 30.0,
       anchorTimestampMs: joinTime - 5000, // Video started 5s ago
+      serverTimeMs: joinTime,
       stateVersion: 1,
     };
 
@@ -292,6 +295,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       videoId: 'test-video-lowdrift',
       anchorPositionSeconds: 20.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -345,6 +349,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       videoId: 'test-video-manual',
       anchorPositionSeconds: 40.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -368,6 +373,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       ...playback,
       anchorPositionSeconds: 60.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 2,
     };
 
@@ -411,6 +417,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       videoId: 'test-video-paused',
       anchorPositionSeconds: 25.0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
@@ -455,6 +462,7 @@ describe('Preservation: Legitimate Drift Correction', () => {
       videoId: 'test-video-clock',
       anchorPositionSeconds: 0,
       anchorTimestampMs: Date.now(),
+      serverTimeMs: Date.now(),
       stateVersion: 1,
     };
 
